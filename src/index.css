@@ -1,0 +1,220 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+Color palette inspired by doktorbanik.sk:
+- Primary Green: rgba(159, 199, 38, 1) -> HSL(75, 68%, 46%)
+- Primary Blue: rgba(41, 84, 140, 1) -> HSL(214, 55%, 35%)
+- Backgrounds: white #ffffff and soft grey #f7f7f7
+- Texts: dark navy #1a1a1a -> HSL(0, 0%, 10%)
+*/
+
+@layer base {
+  :root {
+    /* PRIMARY PALETTE (Blue -> Green Gradient) */
+
+    /* Deep Blue (Left Side) - #1e3a8a (approx) */
+    --gradient-start: 217 65% 25%;
+
+    /* Vibrant Lime Green (Right Side) - #84cc16 (approx) */
+    --gradient-end: 84 81% 44%;
+
+    /* Primary is now the Deep Blue */
+    --primary: 217 65% 25%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Accent is the Lime Green */
+    --accent: 84 81% 44%;
+    --accent-foreground: 0 0% 100%;
+
+    /* Backgrounds */
+    --background: 0 0% 97%;
+    /* Cards will use this or white */
+    --foreground: 0 0% 10%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 10%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 10%;
+
+    /* Secondary - Light Blue/Green Tint */
+    --secondary: 217 30% 90%;
+    --secondary-foreground: 217 65% 25%;
+
+    --muted: 217 20% 92%;
+    --muted-foreground: 217 20% 45%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 84 81% 44%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 10%;
+
+    --border: 217 20% 88%;
+    --input: 217 20% 88%;
+    --ring: 217 65% 25%;
+
+    --radius: 0.75rem;
+    /* Increased radius for modern feel */
+
+    /* Sidebar Variables - now handled by glassmorphism/transparent usually, but defining defaults */
+    --sidebar-background: 217 65% 25%;
+    /* Fallback */
+    --sidebar-foreground: 0 0% 100%;
+    --sidebar-primary: 84 81% 44%;
+    /* Active item color */
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 84 81% 44%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 0 0% 100%;
+    --sidebar-ring: 84 81% 44%;
+
+    /* Chat specific */
+    --chat-my-message: 217 65% 35%;
+    --chat-other-message: 0 0% 100%;
+
+    /* Shadows - Soft & colored */
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    --shadow-lg: 0 10px 15px -3px rgba(30, 58, 138, 0.15);
+    /* Blue-tinted shadow */
+  }
+
+  .dark {
+    --gradient-start: 217 65% 15%;
+    --gradient-end: 84 70% 30%;
+
+    --primary: 217 65% 45%;
+    --primary-foreground: 0 0% 100%;
+
+    --accent: 84 70% 40%;
+    --accent-foreground: 0 0% 100%;
+
+    --background: 222 47% 8%;
+    --foreground: 0 0% 95%;
+
+    --card: 222 47% 10%;
+    --card-foreground: 0 0% 95%;
+
+    --popover: 222 47% 10%;
+    --popover-foreground: 0 0% 95%;
+
+    --secondary: 217 30% 20%;
+    --secondary-foreground: 0 0% 95%;
+
+    --muted: 217 30% 20%;
+    --muted-foreground: 217 20% 65%;
+
+    --destructive: 0 63% 45%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 84 70% 40%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 10%;
+
+    --border: 217 30% 20%;
+    --input: 217 30% 20%;
+    --ring: 217 65% 45%;
+
+    --sidebar-background: 217 65% 15%;
+    --sidebar-foreground: 0 0% 95%;
+    --sidebar-primary: 84 70% 40%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 84 70% 40%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 217 30% 20%;
+    --sidebar-ring: 217 65% 45%;
+
+    --chat-my-message: 217 65% 45%;
+    --chat-other-message: 222 47% 15%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    /* GLOBAL LINEAR GRADIENT BACKGROUND (Blue -> Green) fixed to viewport */
+    background: linear-gradient(90deg, hsl(var(--gradient-start)) 0%, hsl(var(--gradient-end)) 100%);
+    background-attachment: fixed;
+    @apply text-foreground min-h-screen text-base antialiased;
+  }
+}
+
+/* Custom utility classes */
+@layer utilities {
+  .gradient-primary {
+    background: linear-gradient(135deg, hsl(var(--gradient-from)) 0%, hsl(var(--gradient-to)) 100%);
+  }
+
+  .gradient-primary-hover:hover {
+    background: linear-gradient(135deg, hsl(var(--gradient-to)) 0%, hsl(var(--gradient-from)) 100%);
+  }
+
+  .animate-fade-in {
+    animation: fadeIn 0.3s ease-out;
+  }
+
+  .animate-slide-in {
+    animation: slideIn 0.3s ease-out;
+  }
+
+  .animate-scale-in {
+    animation: scaleIn 0.2s ease-out;
+  }
+
+  .hover-lift {
+    @apply transition-all duration-300;
+  }
+
+  .hover-lift:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 10px 25px -5px rgba(41, 84, 140, 0.15);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}

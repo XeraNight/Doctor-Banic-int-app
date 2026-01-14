@@ -1,0 +1,1 @@
+napis mi sql queries ktore ja manualne zadam do supabase sql editora
