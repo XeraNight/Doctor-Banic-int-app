@@ -170,6 +170,11 @@ const AdminDocuments = () => {
         else if (selectedFile.type === 'application/pdf') detectedFileType = 'pdf';
         else if (selectedFile.type.startsWith('video/')) detectedFileType = 'video';
         else if (selectedFile.type.startsWith('text/')) detectedFileType = 'text';
+        else if (selectedFile.name.endsWith('.xlsx')) detectedFileType = 'excel';
+        else if (selectedFile.name.endsWith('.ods')) detectedFileType = 'ods';
+        else if (selectedFile.name.endsWith('.html')) detectedFileType = 'html';
+        else if (selectedFile.name.endsWith('.csv')) detectedFileType = 'csv';
+        else if (selectedFile.name.endsWith('.tsv')) detectedFileType = 'tsv';
         else detectedFileType = 'other';
       }
 
@@ -305,7 +310,7 @@ const AdminDocuments = () => {
                     </Badge>
                   )}
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-1 flex-wrap">
                   <Button
                     variant="outline"
                     size="sm"
@@ -411,6 +416,11 @@ const AdminDocuments = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="pdf">PDF</SelectItem>
+                  <SelectItem value="excel">Excel (.xlsx)</SelectItem>
+                  <SelectItem value="ods">OpenDocument (.ods)</SelectItem>
+                  <SelectItem value="html">Webová stránka (.html)</SelectItem>
+                  <SelectItem value="csv">CSV (.csv)</SelectItem>
+                  <SelectItem value="tsv">TSV (.tsv)</SelectItem>
                   <SelectItem value="image">Obrázok</SelectItem>
                   <SelectItem value="video">Video</SelectItem>
                   <SelectItem value="text">Text</SelectItem>

@@ -121,7 +121,11 @@ const EmployeeDashboard = () => {
           <div className="animate-fade-in">
             {activeTab === 'calendar' && <CalendarWithNotes viewType="admin" />}
             {activeTab === 'patients' && <PatientList />}
-            {activeTab === 'chat' && <ChatPanel />}
+            {activeTab === 'chat' && (
+              <div className="h-[calc(100vh-120px)]">
+                <ChatPanel />
+              </div>
+            )}
           </div>
         </div>
       </main>

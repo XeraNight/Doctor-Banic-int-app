@@ -570,7 +570,7 @@ const ChatPanel = () => {
   return (
     <div className="flex h-full gap-4">
       {/* Room List */}
-      <Card className="w-64 flex-shrink-0">
+      <Card className="w-64 flex-shrink-0 flex flex-col">
         <CardHeader className="pb-3">
           <div className="flex justify-between items-center">
             <CardTitle className="text-sm">Chats</CardTitle>
@@ -654,8 +654,8 @@ const ChatPanel = () => {
             </Dialog>
           </div>
         </CardHeader>
-        <CardContent className="p-2">
-          <ScrollArea className="h-[400px]">
+        <CardContent className="p-2 flex-1 flex flex-col min-h-0">
+          <ScrollArea className="flex-1">
             {roomsLoading ? (
               <p className="text-sm text-muted-foreground text-center p-4">Loading...</p>
             ) : rooms && rooms.length > 0 ? (
@@ -751,7 +751,7 @@ const ChatPanel = () => {
                 </DropdownMenuContent>
               </DropdownMenu>
             </CardHeader>
-            <CardContent className="flex-1 p-0 flex flex-col">
+            <CardContent className="flex-1 p-0 flex flex-col min-h-0 overflow-hidden">
               <ScrollArea className="flex-1 p-4">
                 <div className="space-y-3">
                   {messagesLoading ? (

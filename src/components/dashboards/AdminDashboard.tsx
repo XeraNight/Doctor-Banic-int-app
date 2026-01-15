@@ -144,7 +144,11 @@ const AdminDashboard = () => {
           {activeTab === 'users' && <UserManagement />}
           {activeTab === 'documents' && <AdminDocuments />}
           {activeTab === 'notes' && <NotesPanel />}
-          {activeTab === 'chat' && <ChatPanel />}
+          {activeTab === 'chat' && (
+            <div className="h-[calc(100vh-130px)]">
+              <ChatPanel />
+            </div>
+          )}
         </div>
       </main>
     </div>
