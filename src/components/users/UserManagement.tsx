@@ -145,8 +145,8 @@ const UserManagement = ({ role }: UserManagementProps) => {
             <Button onClick={() => {
               setSelectedUser(null);
               setShowDialog(true);
-            }}>
-              <Plus className="mr-2 h-4 w-4" />
+            }} className="sidebar-btn-active font-semibold">
+              <Plus className="mr-2 h-4 w-4 text-white" />
               Pridať používateľa
             </Button>
           </div>

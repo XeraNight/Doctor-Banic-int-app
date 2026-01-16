@@ -182,7 +182,7 @@ const SearchBar = ({ placeholder = "Search...", onSearch, suggestions = [] }: Se
       <GooeyFilter />
       <motion.form
         onSubmit={handleSubmit}
-        className="relative flex items-center justify-center w-full mx-auto"
+        className="relative flex items-center justify-start w-full"
         initial={{ width: "240px" }}
         animate={{ width: isFocused ? "340px" : "240px", scale: isFocused ? 1.05 : 1 }}
         transition={{ type: "spring", stiffness: 400, damping: 25 }}
