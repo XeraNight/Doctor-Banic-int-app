@@ -184,7 +184,7 @@ const Settings = () => {
                     />
                   </div>
 
-                  <Button type="submit" disabled={passwordLoading}>
+                  <Button type="submit" disabled={passwordLoading} className="sidebar-btn-active font-semibold w-full md:w-auto">
                     {passwordLoading ? 'Aktualizujem...' : 'Zmeniť heslo'}
                   </Button>
                 </form>

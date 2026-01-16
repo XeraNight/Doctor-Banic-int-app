@@ -24,10 +24,10 @@ const EmployeeDashboard = () => {
   return (
     <div className="flex h-screen bg-transparent">
       {/* Sidebar - Desktop */}
-      <aside className="hidden md:flex w-64 flex-col border-r border-white/10 bg-black/20 backdrop-blur-xl transition-all duration-300">
+      <aside className="hidden md:flex w-64 flex-col border-r border-white/10 bg-sidebar backdrop-blur-xl transition-all duration-300">
         <div className="p-6 border-b border-white/10">
           <img src="/logo.png" alt="Doktor Baník" className="h-12 w-auto mb-2" />
-          <p className="text-sm text-white/60 mt-1">Portál zamestnanca</p>
+          <p className="text-sm text-sidebar-foreground/60 mt-1">Portál zamestnanca</p>
         </div>
         <nav className="flex-1 p-4 space-y-2">
           {menuItems.map((item) => (
@@ -35,26 +35,26 @@ const EmployeeDashboard = () => {
               key={item.id}
               variant="ghost"
               className={`w-full justify-start transition-all duration-200 border-0 ${activeTab === item.id
-                ? 'bg-accent text-accent-foreground shadow-lg shadow-accent/20 font-semibold'
-                : 'text-white/70 hover:bg-white/10 hover:text-white'
+                ? 'sidebar-btn-active font-semibold'
+                : 'text-sidebar-foreground/70 sidebar-btn-hover'
                 }`}
               onClick={() => setActiveTab(item.id as any)}
             >
-              <item.icon className={`mr-2 h-4 w-4 ${activeTab === item.id ? 'text-accent-foreground' : 'text-white/70'}`} />
+              <item.icon className={`mr-2 h-4 w-4 ${activeTab === item.id ? 'text-white' : 'text-sidebar-foreground/70'}`} />
               {item.label}
             </Button>
           ))}
         </nav>
         <div className="p-4 border-t border-white/10 space-y-2">
-          <div className="mb-3 p-3 bg-white/5 rounded-lg border border-white/10 backdrop-blur-sm">
+          <div className="mb-3 p-3 sidebar-btn-active rounded-lg border border-white/10 backdrop-blur-sm shadow-lg">
             <p className="text-sm font-medium truncate text-white">{user?.email}</p>
-            <p className="text-xs text-white/60">Zamestnanec</p>
+            <p className="text-xs text-white/80">Zamestnanec</p>
           </div>
-          <Button variant="ghost" className="w-full justify-start text-white/70 hover:bg-white/10 hover:text-white border-0" onClick={() => navigate('/settings')}>
-            <Settings className="mr-2 h-4 w-4" />
+          <Button variant="ghost" className="w-full justify-start sidebar-btn-active border-0 font-semibold" onClick={() => navigate('/settings')}>
+            <Settings className="mr-2 h-4 w-4 text-white" />
             Nastavenia
           </Button>
-          <Button variant="ghost" className="w-full justify-start text-red-300 hover:bg-red-500/20 hover:text-red-200 border-0" onClick={signOut}>
+          <Button variant="ghost" className="w-full justify-start text-red-400 hover:bg-red-500/10 hover:text-red-500 border-0" onClick={signOut}>
             <LogOut className="mr-2 h-4 w-4" />
             Odhlásiť sa
           </Button>
@@ -98,7 +98,7 @@ const EmployeeDashboard = () => {
       </div>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-auto md:pt-0 pt-20 p-6">
+      <main className="flex-1 overflow-auto bg-background md:pt-0 pt-20 p-6">
         <div className="max-w-7xl mx-auto">
           <div className="mb-6 animate-fade-in">
             <div className="flex items-center gap-4">
@@ -121,7 +121,11 @@ const EmployeeDashboard = () => {
           <div className="animate-fade-in">
             {activeTab === 'calendar' && <CalendarWithNotes viewType="admin" />}
             {activeTab === 'patients' && <PatientList />}
-            {activeTab === 'chat' && <ChatPanel />}
+            {activeTab === 'chat' && (
+              <div className="h-[calc(100vh-120px)]">
+                <ChatPanel />
+              </div>
+            )}
           </div>
         </div>
       </main>

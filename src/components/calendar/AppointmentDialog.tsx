@@ -9,6 +9,9 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import FileUpload from '@/components/ui/FileUpload';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { ChevronDown, ChevronUp, Paperclip } from 'lucide-react';
 
 interface AppointmentDialogProps {
   open: boolean;
@@ -29,6 +32,12 @@ const AppointmentDialog = ({ open, onOpenChange, viewType, appointment }: Appoin
   const [selectedPatient, setSelectedPatient] = useState('');
   const [status, setStatus] = useState('pending');
   const [room, setRoom] = useState('');
+
+  // File upload state
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [fileName, setFileName] = useState('');
+  const [showFileUpload, setShowFileUpload] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     if (appointment && open) {
@@ -74,8 +83,57 @@ const AppointmentDialog = ({ open, onOpenChange, viewType, appointment }: Appoin
     enabled: viewType === 'patient' && open,
   });
 
+  const uploadFile = async (appointmentId: string, patientId: string) => {
+    if (!selectedFile) return;
+
+    try {
+      const fileExt = selectedFile.name.split('.').pop();
+      const filePath = `${user?.id}/${Date.now()}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('documents')
+        .upload(filePath, selectedFile);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('documents')
+        .getPublicUrl(filePath);
+
+      let detectedFileType = 'other';
+      if (selectedFile.type.startsWith('image/')) detectedFileType = 'image';
+      else if (selectedFile.type === 'application/pdf') detectedFileType = 'pdf';
+      else if (selectedFile.type.startsWith('text/')) detectedFileType = 'text';
+
+      const { error: dbError } = await supabase
+        .from('documents')
+        .insert({
+          patient_id: patientId,
+          appointment_id: appointmentId,
+          uploaded_by: user?.id,
+          file_name: fileName || selectedFile.name,
+          file_url: publicUrl,
+          file_type: detectedFileType,
+          file_size: selectedFile.size,
+          description: 'Uploaded during appointment creation',
+        });
+
+      if (dbError) throw dbError;
+
+    } catch (error) {
+      console.error('Error uploading file:', error);
+      toast({
+        title: 'Upload Failed',
+        description: 'Failed to upload attachment, but appointment was saved.',
+        variant: 'destructive',
+      });
+    }
+  };
+
   const saveAppointmentMutation = useMutation({
     mutationFn: async (appointmentData: any) => {
+      let savedAppointment;
+      
       if (appointment) {
         const { data, error } = await supabase
           .from('appointments')
@@ -84,7 +142,7 @@ const AppointmentDialog = ({ open, onOpenChange, viewType, appointment }: Appoin
           .select()
           .single();
         if (error) throw error;
-        return data;
+        savedAppointment = data;
       } else {
         const { data, error } = await supabase
           .from('appointments')
@@ -92,8 +150,17 @@ const AppointmentDialog = ({ open, onOpenChange, viewType, appointment }: Appoin
           .select()
           .single();
         if (error) throw error;
-        return data;
+        savedAppointment = data;
       }
+
+      // Handle file upload if present
+      if (selectedFile && savedAppointment) {
+        setUploading(true);
+        await uploadFile(savedAppointment.id, savedAppointment.patient_id);
+        setUploading(false);
+      }
+
+      return savedAppointment;
     },
     onSuccess: () => {
       toast({
@@ -105,10 +172,13 @@ const AppointmentDialog = ({ open, onOpenChange, viewType, appointment }: Appoin
             : 'Appointment created successfully',
       });
       queryClient.invalidateQueries({ queryKey: ['appointments'] });
+      // Also invalidate documents in case we're viewing them somewhere
+      queryClient.invalidateQueries({ queryKey: ['all-documents'] }); 
       onOpenChange(false);
       resetForm();
     },
     onError: (error: any) => {
+      setUploading(false);
       toast({
         title: 'Error',
         description: error.message,
@@ -125,6 +195,9 @@ const AppointmentDialog = ({ open, onOpenChange, viewType, appointment }: Appoin
     setSelectedPatient('');
     setStatus('pending');
     setRoom('');
+    setSelectedFile(null);
+    setFileName('');
+    setShowFileUpload(false);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -177,7 +250,7 @@ const AppointmentDialog = ({ open, onOpenChange, viewType, appointment }: Appoin
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {appointment 
@@ -211,26 +284,28 @@ const AppointmentDialog = ({ open, onOpenChange, viewType, appointment }: Appoin
             </div>
           )}
 
-          <div className="space-y-2">
-            <Label htmlFor="date">Date</Label>
-            <Input
-              id="date"
-              type="date"
-              value={appointmentDate}
-              onChange={(e) => setAppointmentDate(e.target.value)}
-              required
-            />
-          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="date">Date</Label>
+              <Input
+                id="date"
+                type="date"
+                value={appointmentDate}
+                onChange={(e) => setAppointmentDate(e.target.value)}
+                required
+              />
+            </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="time">Time</Label>
-            <Input
-              id="time"
-              type="time"
-              value={appointmentTime}
-              onChange={(e) => setAppointmentTime(e.target.value)}
-              required
-            />
+            <div className="space-y-2">
+              <Label htmlFor="time">Time</Label>
+              <Input
+                id="time"
+                type="time"
+                value={appointmentTime}
+                onChange={(e) => setAppointmentTime(e.target.value)}
+                required
+              />
+            </div>
           </div>
 
           <div className="space-y-2">
@@ -262,7 +337,7 @@ const AppointmentDialog = ({ open, onOpenChange, viewType, appointment }: Appoin
           </div>
 
           {viewType !== 'patient' && (
-            <>
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="status">Status</Label>
                 <Select value={status} onValueChange={setStatus}>
@@ -288,17 +363,62 @@ const AppointmentDialog = ({ open, onOpenChange, viewType, appointment }: Appoin
                   placeholder="Room 101"
                 />
               </div>
-            </>
+            </div>
           )}
 
-          <div className="flex gap-3">
-            <Button type="submit" disabled={saveAppointmentMutation.isPending}>
-              {saveAppointmentMutation.isPending 
+          <Collapsible
+            open={showFileUpload}
+            onOpenChange={setShowFileUpload}
+            className="border rounded-md p-2 bg-muted/20"
+          >
+            <div className="flex items-center justify-between px-2">
+              <h4 className="text-sm font-semibold flex items-center gap-2">
+                <Paperclip className="h-4 w-4" />
+                Doplnkový dokument
+              </h4>
+              <CollapsibleTrigger asChild>
+                <Button variant="ghost" size="sm" type="button">
+                  {showFileUpload ? (
+                    <ChevronUp className="h-4 w-4" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4" />
+                  )}
+                  <span className="sr-only">Toggle Upload</span>
+                </Button>
+              </CollapsibleTrigger>
+            </div>
+            <CollapsibleContent className="space-y-4 pt-4 px-2">
+              <div className="space-y-2">
+                <Label>Vybrať súbor</Label>
+                <FileUpload
+                   onFileSelect={(file) => {
+                    setSelectedFile(file);
+                    if (file && !fileName) {
+                      setFileName(file.name.split('.').slice(0, -1).join('.'));
+                    }
+                  }}
+                  maxSize={5 * 1024 * 1024} // 5MB limit for appointments
+                />
+              </div>
+              {selectedFile && (
+                <div className="space-y-2">
+                   <Label htmlFor="doc-name">Názov dokumentu</Label>
+                   <Input 
+                      id="doc-name"
+                      value={fileName} 
+                      onChange={(e) => setFileName(e.target.value)}
+                      placeholder="Názov súboru"
+                   />
+                </div>
+              )}
+            </CollapsibleContent>
+          </Collapsible>
+
+          <div className="flex gap-3 pt-2">
+            <Button type="submit" disabled={saveAppointmentMutation.isPending || uploading} className="w-full">
+              {saveAppointmentMutation.isPending || uploading
                 ? 'Saving...' 
-                : appointment ? 'Update' : 'Create'}
-            </Button>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
+                : appointment ? 'Update Appointment' : 'Create Appointment'}
             </Button>
           </div>
         </form>

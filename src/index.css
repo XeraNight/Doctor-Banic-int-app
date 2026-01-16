@@ -30,7 +30,7 @@ Color palette inspired by doktorbanik.sk:
     --accent-foreground: 0 0% 100%;
 
     /* Backgrounds */
-    --background: 0 0% 97%;
+    --background: 0 0% 100%;
     /* Cards will use this or white */
     --foreground: 0 0% 10%;
 
@@ -64,9 +64,9 @@ Color palette inspired by doktorbanik.sk:
     /* Increased radius for modern feel */
 
     /* Sidebar Variables - now handled by glassmorphism/transparent usually, but defining defaults */
-    --sidebar-background: 217 65% 25%;
+    --sidebar-background: 220 14% 90%;
     /* Fallback */
-    --sidebar-foreground: 0 0% 100%;
+    --sidebar-foreground: 222 47% 11%;
     --sidebar-primary: 84 81% 44%;
     /* Active item color */
     --sidebar-primary-foreground: 0 0% 100%;
@@ -96,13 +96,13 @@ Color palette inspired by doktorbanik.sk:
     --accent: 84 70% 40%;
     --accent-foreground: 0 0% 100%;
 
-    --background: 222 47% 8%;
+    --background: 210 3% 12%;
     --foreground: 0 0% 95%;
 
-    --card: 222 47% 10%;
+    --card: 210 3% 14%;
     --card-foreground: 0 0% 95%;
 
-    --popover: 222 47% 10%;
+    --popover: 210 3% 14%;
     --popover-foreground: 0 0% 95%;
 
     --secondary: 217 30% 20%;
@@ -124,7 +124,7 @@ Color palette inspired by doktorbanik.sk:
     --input: 217 30% 20%;
     --ring: 217 65% 45%;
 
-    --sidebar-background: 217 65% 15%;
+    --sidebar-background: 210 3% 16%;
     --sidebar-foreground: 0 0% 95%;
     --sidebar-primary: 84 70% 40%;
     --sidebar-primary-foreground: 0 0% 100%;
@@ -153,12 +153,31 @@ Color palette inspired by doktorbanik.sk:
 
 /* Custom utility classes */
 @layer utilities {
+  .sidebar-btn-active {
+    background: linear-gradient(90deg, #3b82f6 0%, #1e3a8a 100%);
+    /* Light Blue to Dark Blue */
+    color: white;
+    @apply shadow-md shadow-blue-500/20;
+  }
+
+  .sidebar-btn-hover:hover {
+    @apply bg-white/20 text-[#65a30d] dark:bg-white/10 dark:text-[#a3e635];
+  }
+
   .gradient-primary {
-    background: linear-gradient(135deg, hsl(var(--gradient-from)) 0%, hsl(var(--gradient-to)) 100%);
+    background: linear-gradient(
+      135deg,
+      hsl(var(--gradient-start)) 0%,
+      hsl(var(--gradient-end)) 100%
+    );
   }
 
   .gradient-primary-hover:hover {
-    background: linear-gradient(135deg, hsl(var(--gradient-to)) 0%, hsl(var(--gradient-from)) 100%);
+    background: linear-gradient(
+      135deg,
+      hsl(var(--gradient-end)) 0%,
+      hsl(var(--gradient-start)) 100%
+    );
   }
 
   .animate-fade-in {

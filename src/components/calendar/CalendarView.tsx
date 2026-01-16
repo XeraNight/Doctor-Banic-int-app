@@ -11,6 +11,7 @@ import { Calendar as CalendarIcon, Plus, Filter, Edit, Trash2, Search } from 'lu
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import AppointmentDialog from './AppointmentDialog';
+import { SearchBar, type SearchSuggestion } from '@/components/ui/search-bar';
 
 interface CalendarViewProps {
   viewType: 'admin' | 'doctor' | 'patient';
@@ -134,7 +135,6 @@ const CalendarView = ({ viewType }: CalendarViewProps) => {
     }
   };
 
-  // Filter appointments based on search term
   const filteredAppointments = appointments?.filter((appointment: any) => {
     if (!searchTerm) return true;
 
@@ -144,13 +144,24 @@ const CalendarView = ({ viewType }: CalendarViewProps) => {
     const appointmentType = getTypeLabel(appointment.appointment_type).toLowerCase();
     const reason = appointment.reason?.toLowerCase() || '';
     const room = appointment.room?.toLowerCase() || '';
+    const status = appointment.status?.toLowerCase() || '';
 
     return patientName.includes(search) ||
       appointmentDate.includes(search) ||
       appointmentType.includes(search) ||
       reason.includes(search) ||
-      room.includes(search);
+      room.includes(search) ||
+      status.includes(search);
   });
+
+  const searchSuggestions: SearchSuggestion[] = appointments
+    ? Array.from(new Set(appointments.map((a: any) => a.patient?.full_name).filter(Boolean)))
+      .map((name: any) => ({
+        label: name,
+        value: name,
+        type: 'Patient'
+      }))
+    : [];
 
   const renderAppointmentsList = () => (
     <div className="grid gap-4">
@@ -248,12 +259,10 @@ const CalendarView = ({ viewType }: CalendarViewProps) => {
       <div className="space-y-6">
         <div className="flex gap-4 items-center">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Hľadať termíny podľa mena, dátumu, typu..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
+            <SearchBar 
+              placeholder="Hľadať termíny..." 
+              onSearch={setSearchTerm}
+              suggestions={searchSuggestions}
             />
           </div>
           <Button onClick={() => setShowAppointmentDialog(true)}>
@@ -278,13 +287,11 @@ const CalendarView = ({ viewType }: CalendarViewProps) => {
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex gap-4 items-center">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Hľadať termíny podľa pacienta, dátumu, typu..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
+        <div className="relative flex-1 h-16 flex items-center z-40">
+          <SearchBar 
+            placeholder="Hľadať termíny..." 
+            onSearch={setSearchTerm}
+            suggestions={searchSuggestions}
           />
         </div>
         <Button onClick={() => setShowAppointmentDialog(true)} className="gradient-primary text-primary-foreground hover-lift">
