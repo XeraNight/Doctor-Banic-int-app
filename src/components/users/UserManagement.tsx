@@ -10,6 +10,7 @@ import { Plus, Search, Edit, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import UserDialog from './UserDialog';
+import { SearchBar, type SearchSuggestion } from '@/components/ui/search-bar';
 
 type UserRole = 'admin' | 'doctor' | 'patient' | 'zamestnanec';
 
@@ -152,13 +153,11 @@ const UserManagement = ({ role }: UserManagementProps) => {
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Hľadať podľa mena alebo emailu..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
+          <div className="relative z-40">
+            <SearchBar
+              placeholder="Hľadať používateľov"
+              onSearch={setSearchQuery}
+              suggestions={users ? users.map((u: any) => ({ label: u.full_name, value: u.full_name, type: getRoleLabel(u.user_roles?.role) })) : []}
             />
           </div>
 

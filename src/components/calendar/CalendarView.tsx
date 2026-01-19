@@ -138,7 +138,7 @@ const CalendarView = ({ viewType }: CalendarViewProps) => {
   const filteredAppointments = appointments?.filter((appointment: any) => {
     if (!searchTerm) return true;
 
-    const search = searchTerm.toLowerCase();
+    const search = searchTerm.toLowerCase().trim();
     const patientName = appointment.patient?.full_name?.toLowerCase() || '';
     const appointmentDate = format(new Date(appointment.appointment_date), 'PPP p').toLowerCase();
     const appointmentType = getTypeLabel(appointment.appointment_type).toLowerCase();
@@ -159,7 +159,7 @@ const CalendarView = ({ viewType }: CalendarViewProps) => {
       .map((name: any) => ({
         label: name,
         value: name,
-        type: 'Patient'
+        type: 'Pacient'
       }))
     : [];
 
@@ -223,7 +223,7 @@ const CalendarView = ({ viewType }: CalendarViewProps) => {
                     Edit
                   </Button>
                   <Button
-                    variant="outline"
+                    variant="destructive"
                     size="sm"
                     onClick={() => handleDelete(appointment.id)}
                     disabled={deleteAppointmentMutation.isPending}
@@ -260,7 +260,7 @@ const CalendarView = ({ viewType }: CalendarViewProps) => {
         <div className="flex gap-4 items-center">
           <div className="relative flex-1">
             <SearchBar 
-              placeholder="Hľadať termíny..." 
+              placeholder="Hľadať termíny" 
               onSearch={setSearchTerm}
               suggestions={searchSuggestions}
             />
@@ -289,34 +289,34 @@ const CalendarView = ({ viewType }: CalendarViewProps) => {
       <div className="flex gap-4 items-center">
         <div className="relative flex-1 h-16 flex items-center z-40">
           <SearchBar 
-            placeholder="Hľadať termíny..." 
+            placeholder="Hľadať termíny" 
             onSearch={setSearchTerm}
             suggestions={searchSuggestions}
           />
         </div>
-        <Button onClick={() => setShowAppointmentDialog(true)} className="gradient-primary text-primary-foreground hover-lift">
+        <Button onClick={() => setShowAppointmentDialog(true)} className="bg-gradient-to-r from-[#3b82f6] to-[#1e3a8a] text-white hover:from-[#a3e635] hover:to-[#65a30d] transition-all duration-300 shadow-md border-0">
           <Plus className="mr-2 h-4 w-4" />
-          New Appointment
+          Nový termín
         </Button>
       </div>
 
       <Tabs value={activeCalendar} onValueChange={(v) => setActiveCalendar(v as any)} className="w-full">
-        <TabsList className="grid w-full grid-cols-3 bg-secondary">
+        <TabsList className="grid w-full grid-cols-3 bg-secondary p-1">
           <TabsTrigger
             value="doctor"
-            className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all"
+            className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-[#3b82f6] data-[state=active]:to-[#1e3a8a] data-[state=active]:text-white transition-all shadow-sm"
           >
             My Calendar
           </TabsTrigger>
           <TabsTrigger
             value="client"
-            className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all"
+            className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-[#3b82f6] data-[state=active]:to-[#1e3a8a] data-[state=active]:text-white transition-all shadow-sm"
           >
             Doctor + Employees
           </TabsTrigger>
           <TabsTrigger
             value="team"
-            className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all"
+            className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-[#3b82f6] data-[state=active]:to-[#1e3a8a] data-[state=active]:text-white transition-all shadow-sm"
           >
             Everyone Together
           </TabsTrigger>

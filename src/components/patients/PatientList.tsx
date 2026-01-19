@@ -11,6 +11,7 @@ import { Users, Search, Mail, Phone, Plus, Pencil, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
+import { SearchBar, type SearchSuggestion } from '@/components/ui/search-bar';
 
 const PatientList = () => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -182,18 +183,17 @@ const PatientList = () => {
     <div className="space-y-6">
       {/* Search and Add Button */}
       <div className="flex gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Vyhľadať pacientov podľa mena, emailu alebo telefónu..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
+
+        <div className="relative flex-1 z-40">
+          <SearchBar
+            placeholder="Vyhľadať pacientov"
+            onSearch={setSearchQuery}
+            suggestions={patients ? patients.map((p: any) => ({ label: p.full_name, value: p.full_name, type: 'Pacient' })) : []}
           />
         </div>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
-            <Button className="shrink-0">
+            <Button className="shrink-0 bg-gradient-to-r from-[#3b82f6] to-[#1e3a8a] text-white hover:from-[#a3e635] hover:to-[#65a30d] transition-all duration-300 shadow-md border-0">
               <Plus className="h-4 w-4 mr-2" />
               Pridať pacienta
             </Button>
@@ -498,9 +498,9 @@ const PatientList = () => {
                     Upraviť
                   </Button>
                   <Button
-                    variant="outline"
+                    variant="destructive"
                     size="sm"
-                    className="flex-1 text-destructive hover:text-destructive"
+                    className="flex-1"
                     onClick={() => handleDeleteClick(patient)}
                   >
                     <Trash2 className="h-3 w-3 mr-2" />

@@ -344,6 +344,8 @@ export type Database = {
           id: string
           is_draft: boolean | null
           note_date: string | null
+          recipient_name: string | null
+          order_index: number | null
           title: string
           updated_at: string | null
           user_id: string
@@ -356,6 +358,8 @@ export type Database = {
           id?: string
           is_draft?: boolean | null
           note_date?: string | null
+          recipient_name?: string | null
+          order_index?: number | null
           title: string
           updated_at?: string | null
           user_id: string
@@ -368,6 +372,8 @@ export type Database = {
           id?: string
           is_draft?: boolean | null
           note_date?: string | null
+          recipient_name?: string | null
+          order_index?: number | null
           title?: string
           updated_at?: string | null
           user_id?: string

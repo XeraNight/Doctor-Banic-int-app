@@ -54,6 +54,10 @@ const SearchBar = ({ placeholder = "Search...", onSearch, suggestions = [] }: Se
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value
     setSearchQuery(value)
+    
+    if (onSearch) {
+      onSearch(value)
+    }
 
     if (value.trim()) {
       const filtered = suggestions.filter((item) => 
