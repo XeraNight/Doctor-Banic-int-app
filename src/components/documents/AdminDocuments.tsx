@@ -30,7 +30,7 @@ const AdminDocuments = () => {
   const [uploading, setUploading] = useState(false);
   const [previewDocument, setPreviewDocument] = useState<any>(null);
   const [showPreviewDialog, setShowPreviewDialog] = useState(false);
-  const [isFullPreview, setIsFullPreview] = useState(true);
+  const [isFullPreview, setIsFullPreview] = useState(false);
   const [imageAspectRatio, setImageAspectRatio] = useState<number | null>(null);
 
   // Load image and calculate aspect ratio when preview document changes
