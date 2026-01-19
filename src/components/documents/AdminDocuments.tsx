@@ -14,6 +14,7 @@ import { FileText, Upload, Trash2, Search, Plus, Eye, Download, Maximize2, Minim
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import FileUpload from '@/components/ui/FileUpload';
+import { SearchBar, type SearchSuggestion } from '@/components/ui/search-bar';
 
 const AdminDocuments = () => {
   const { user } = useAuth();
@@ -245,8 +246,46 @@ const AdminDocuments = () => {
     }
   };
 
+  const getSlovakFileType = (type: string) => {
+    const types: Record<string, string> = {
+      image: 'fotka',
+      pdf: 'pdf',
+      text: 'text',
+      video: 'video',
+      excel: 'excel',
+      word: 'word',
+      powerpoint: 'powerpoint',
+      audio: 'audio',
+      archive: 'archív',
+      csv: 'csv',
+      html: 'html'
+    };
+    return types[type] || type;
+  };
+
   const filteredDocuments = documents?.filter((doc: any) => {
-    const search = searchTerm.toLowerCase();
+    const search = searchTerm.toLowerCase().trim();
+    if (!search) return true;
+
+    // Strict type filtering
+    // If the search term exactly matches a known file type (in Slovak or English),
+    // we filter strictly by that type and ignore other fields.
+    const reverseTypeMapping: Record<string, string> = {
+      'fotka': 'image',
+      'image': 'image',
+      'pdf': 'pdf',
+      'text': 'text',
+      'video': 'video',
+      'excel': 'excel',
+      'csv': 'csv',
+      'html': 'html'
+    };
+
+    if (reverseTypeMapping[search]) {
+      return doc.file_type === reverseTypeMapping[search];
+    }
+
+    // Standard search
     return (
       doc.file_name?.toLowerCase().includes(search) ||
       doc.patient?.full_name?.toLowerCase().includes(search) ||
@@ -257,17 +296,16 @@ const AdminDocuments = () => {
   return (
     <div className="space-y-6">
       {/* Header with search and add button */}
+
       <div className="flex flex-col sm:flex-row justify-between gap-4">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
+        <div className="relative flex-1 max-w-md z-40">
+          <SearchBar
             placeholder="Vyhľadať dokumenty..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
+            onSearch={setSearchTerm}
+            suggestions={documents ? Array.from(new Set(documents.map((d: any) => d.file_name))).map(name => ({ label: name, value: name, type: 'Dokument' })) : []}
           />
         </div>
-        <Button onClick={() => setShowUploadDialog(true)}>
+        <Button onClick={() => setShowUploadDialog(true)} className="bg-gradient-to-r from-[#3b82f6] to-[#1e3a8a] text-white hover:from-[#a3e635] hover:to-[#65a30d] transition-all duration-300 shadow-md border-0">
           <Plus className="mr-2 h-4 w-4" />
           Pridať dokument
         </Button>
@@ -303,7 +341,7 @@ const AdminDocuments = () => {
                   <p className="text-sm text-muted-foreground mb-3 line-clamp-2">{document.description}</p>
                 )}
                 <div className="flex gap-2 mb-3 flex-wrap">
-                  <Badge variant="secondary">{document.file_type || 'Dokument'}</Badge>
+                  <Badge variant="secondary">{getSlovakFileType(document.file_type || 'Dokument')}</Badge>
                   {document.file_size && (
                     <Badge variant="outline">
                       {(document.file_size / 1024).toFixed(2)} KB
@@ -469,7 +507,7 @@ const AdminDocuments = () => {
             <div className="flex justify-between items-start gap-2">
               <div className="flex gap-2 flex-wrap">
                 <Badge variant="secondary">
-                  {previewDocument?.file_type || 'Dokument'}
+                  {getSlovakFileType(previewDocument?.file_type || 'Dokument')}
                 </Badge>
                 {previewDocument?.patient?.full_name && (
                   <Badge variant="outline">
@@ -535,7 +573,7 @@ const AdminDocuments = () => {
 
                     <div>
                       <Label className="text-xs text-muted-foreground">Typ</Label>
-                      <p className="text-sm">{previewDocument?.file_type || 'Neznámy'}</p>
+                      <p className="text-sm">{getSlovakFileType(previewDocument?.file_type || 'Neznámy')}</p>
                     </div>
 
                     {previewDocument?.patient?.full_name && (
