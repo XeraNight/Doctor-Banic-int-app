@@ -9,6 +9,8 @@ import ChatPanel from '@/components/chat/ChatPanel';
 
 import { GlobalNotificationButton } from '@/components/notifications/GlobalNotificationButton';
 
+import logo from '@/assets/logo.png';
+
 const EmployeeDashboard = () => {
   const { signOut, user } = useAuth();
   const navigate = useNavigate();
@@ -26,7 +28,7 @@ const EmployeeDashboard = () => {
       {/* Sidebar - Desktop */}
       <aside className="hidden md:flex w-64 flex-col border-r border-white/10 bg-sidebar backdrop-blur-xl transition-all duration-300">
         <div className="p-6 border-b border-white/10">
-          <img src={`${import.meta.env.BASE_URL}logo.png`} alt="Doktor Baník" className="h-12 w-auto mb-2" />
+          <img src={logo} alt="Doktor Baník" className="h-12 w-auto mb-2" />
           <p className="text-sm text-sidebar-foreground/60 mt-1">Portál zamestnanca</p>
         </div>
         <nav className="flex-1 p-4 space-y-2">
@@ -64,7 +66,7 @@ const EmployeeDashboard = () => {
       {/* Mobile Header */}
       <div className="md:hidden fixed top-0 left-0 right-0 z-50 bg-primary/90 backdrop-blur-md border-b border-white/10">
         <div className="flex items-center justify-between p-4">
-          <img src={`${import.meta.env.BASE_URL}logo.png`} alt="Doktor Baník" className="h-10 w-auto" />
+          <img src={logo} alt="Doktor Baník" className="h-10 w-auto" />
           <Button variant="ghost" size="icon" onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="text-white hover:bg-white/20">
             <Menu className="h-5 w-5" />
           </Button>

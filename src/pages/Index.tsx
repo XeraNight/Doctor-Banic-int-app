@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Activity } from 'lucide-react';
+import logo from '@/assets/logo.png';
 
 const Index = () => {
   const navigate = useNavigate();
