@@ -9,12 +9,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { FileText, Upload, Trash2, Search, Plus, Eye, Download, Maximize2, Minimize2 } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { FileText, Upload, Trash2, Search, Plus, Eye, Download, Maximize2, Minimize2, Folder, Grid, LayoutGrid, List as ListIcon, ChevronLeft, ChevronRight, Pencil } from 'lucide-react';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import FileUpload from '@/components/ui/FileUpload';
 import { SearchBar, type SearchSuggestion } from '@/components/ui/search-bar';
+import AnimatedFolder from '@/components/ui/ThreeDFolder';
 
 const AdminDocuments = () => {
   const { user } = useAuth();
@@ -31,7 +32,29 @@ const AdminDocuments = () => {
   const [previewDocument, setPreviewDocument] = useState<any>(null);
   const [showPreviewDialog, setShowPreviewDialog] = useState(false);
   const [isFullPreview, setIsFullPreview] = useState(false);
+
   const [imageAspectRatio, setImageAspectRatio] = useState<number | null>(null);
+
+
+
+  // Folder View State
+  const [viewMode, setViewMode] = useState<'all' | 'folders' | 'files'>('all');
+  const [currentFolderId, setCurrentFolderId] = useState<string | null>(null); // null = root
+  const [currentSubFolderId, setCurrentSubFolderId] = useState<string | null>(null); // null = root of patient folder
+
+  // New Folder State
+  const [showNewFolderDialog, setShowNewFolderDialog] = useState(false);
+  const [newFolderName, setNewFolderName] = useState('');
+
+  // Edit State
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [editingDoc, setEditingDoc] = useState<any>(null);
+  const [editName, setEditName] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+
+  // Delete Confirmation State
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deletingDocId, setDeletingDocId] = useState<string | null>(null);
 
   // Load image and calculate aspect ratio when preview document changes
   useEffect(() => {
@@ -59,7 +82,20 @@ const AdminDocuments = () => {
     },
   });
 
-  // Fetch all documents with patient info
+  // Fetch folders
+  const { data: subFolders } = useQuery({
+    queryKey: ['folders'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('folders' as any)
+        .select('*')
+        .order('name');
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Fetch all documents with patient info and folder_id
   const { data: documents, isLoading } = useQuery({
     queryKey: ['all-documents'],
     queryFn: async () => {
@@ -127,8 +163,65 @@ const AdminDocuments = () => {
     },
   });
 
+  const editDocumentMutation = useMutation({
+    mutationFn: async ({ id, updates }: { id: string; updates: any }) => {
+      const { error } = await supabase
+        .from('documents')
+        .update(updates)
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({
+        title: 'Úspech',
+        description: 'Dokument bol upravený',
+      });
+      queryClient.invalidateQueries({ queryKey: ['all-documents'] });
+      setShowEditDialog(false);
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Chyba',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const createFolderMutation = useMutation({
+    mutationFn: async ({ name, patientId }: { name: string; patientId: string }) => {
+      const { error } = await supabase
+        .from('folders' as any)
+        .insert({
+          name,
+          patient_id: patientId,
+          created_by: user?.id
+        });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({
+        title: 'Úspech',
+        description: 'Priečinok bol vytvorený',
+      });
+      queryClient.invalidateQueries({ queryKey: ['folders'] });
+      setShowNewFolderDialog(false);
+      setNewFolderName('');
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Chyba',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+
   const resetForm = () => {
-    setSelectedPatient('none');
+    // Only reset patient if we are not forcibly selecting one via folder view
+    if (!currentFolderId) {
+      setSelectedPatient('none');
+    }
     setFileName('');
     setSelectedFile(null);
     setFileType('');
@@ -182,6 +275,7 @@ const AdminDocuments = () => {
       // Save document record to database
       uploadDocumentMutation.mutate({
         patient_id: selectedPatient === 'none' ? null : selectedPatient,
+        folder_id: (selectedPatient !== 'none' && currentSubFolderId) ? currentSubFolderId : null,
         uploaded_by: user?.id,
         file_name: fileName,
         file_url: publicUrl,
@@ -241,9 +335,36 @@ const AdminDocuments = () => {
   };
 
   const handleDelete = (documentId: string) => {
-    if (confirm('Naozaj chcete vymazať tento dokument? Táto akcia je nevratná.')) {
-      deleteDocumentMutation.mutate(documentId);
+    setDeletingDocId(documentId);
+    setShowDeleteDialog(true);
+  };
+
+  const confirmDelete = () => {
+    if (deletingDocId) {
+      deleteDocumentMutation.mutate(deletingDocId);
+      setShowDeleteDialog(false);
+      setDeletingDocId(null);
     }
+  };
+
+  const handleEditClick = (doc: any) => {
+    setEditingDoc(doc);
+    setEditName(doc.file_name);
+    setEditDescription(doc.description || '');
+    setShowEditDialog(true);
+  };
+
+  const handleEditSave = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingDoc) return;
+    
+    editDocumentMutation.mutate({
+      id: editingDoc.id,
+      updates: {
+        file_name: editName,
+        description: editDescription,
+      }
+    });
   };
 
   const getSlovakFileType = (type: string) => {
@@ -293,25 +414,361 @@ const AdminDocuments = () => {
     );
   });
 
+  // Folder Logic
+  const patientFolders = documents ? Array.from(new Set(documents.map((d: any) => d.patient_id)))
+    .map(patientId => {
+      const patientDocs = documents.filter((d: any) => d.patient_id === patientId);
+      const patient = patientDocs[0]?.patient;
+      return {
+        id: patientId || 'unassigned',
+        name: patient ? patient.full_name : 'Nepriradené',
+        count: patientDocs.length,
+        email: patient?.email
+      };
+    })
+    .sort((a, b) => a.name.localeCompare(b.name)) : [];
+
+  // Simplified document filtering based on new view modes
+  const displayedDocuments = viewMode === 'folders'
+    ? null // Don't show documents in folders-only mode
+    : (currentFolderId 
+        ? filteredDocuments?.filter((d: any) => {
+            const matchesPatient = (d.patient_id || 'unassigned') === currentFolderId;
+            if (!matchesPatient) return false;
+            
+            // If we are in a subfolder, show only docs in that folder
+            if (currentSubFolderId) {
+              return d.folder_id === currentSubFolderId;
+            }
+            // In patient folder root, show only root docs (not in sub-folders)
+            return !d.folder_id;
+        })
+        : filteredDocuments); // At root level, show all documents
+
+  const currentFolderName = currentFolderId 
+    ? (patientFolders.find(f => f.id === currentFolderId)?.name || 'Priečinok')
+    : 'Dokumenty';
+
+  const currentSubFolderName = currentSubFolderId
+    ? ((subFolders as any[])?.find((f: any) => f.id === currentSubFolderId)?.name || 'Podpriečinok')
+    : null;
+
   return (
     <div className="space-y-6">
       {/* Header with search and add button */}
 
-      <div className="flex flex-col sm:flex-row justify-between gap-4">
-        <div className="relative flex-1 max-w-md z-40">
-          <SearchBar
-            placeholder="Vyhľadať dokumenty..."
-            onSearch={setSearchTerm}
-            suggestions={documents ? Array.from(new Set(documents.map((d: any) => d.file_name))).map(name => ({ label: name, value: name, type: 'Dokument' })) : []}
-          />
+      <div className="flex flex-col gap-4">
+        {/* Top Bar: Breadcrumbs/Title + Actions */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+           <div className="flex items-center gap-2">
+              {viewMode === 'folders' && currentFolderId && (
+                <Button variant="ghost" size="icon" onClick={() => {
+                  if (currentSubFolderId) {
+                    setCurrentSubFolderId(null);
+                  } else {
+                    setCurrentFolderId(null);
+                  }
+                }}>
+                  <ChevronLeft className="h-5 w-5" />
+                </Button>
+              )}
+              {/* Breadcrumb Navigation */}
+              <div className="flex items-center gap-2 flex-wrap">
+                {/* Root: Dokumenty */}
+                <button
+                  onClick={() => {
+                    setCurrentFolderId(null);
+                    setCurrentSubFolderId(null);
+                  }}
+                  className="text-2xl font-bold tracking-tight hover:text-primary transition-colors"
+                >
+                  Dokumenty
+                </button>
+                
+                {/* Patient Folder */}
+                {currentFolderId && (
+                  <>
+                    <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                    <button
+                      onClick={() => {
+                        setCurrentSubFolderId(null);
+                      }}
+                      className={`text-2xl font-bold tracking-tight transition-colors ${
+                        currentSubFolderId ? 'text-muted-foreground hover:text-foreground' : ''
+                      }`}
+                    >
+                      {currentFolderName}
+                    </button>
+                  </>
+                )}
+                
+                {/* Sub-Folder */}
+                {currentSubFolderId && (
+                  <>
+                    <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                    <span className="text-2xl font-bold tracking-tight">
+                      {currentSubFolderName}
+                    </span>
+                  </>
+                )}
+              </div>
+           </div>
+
+           <div className="flex items-center gap-2 w-full sm:w-auto">
+              <div className="flex items-center bg-muted rounded-lg p-1">
+                <Button
+                  variant={viewMode === 'all' ? 'secondary' : 'ghost'}
+                  size="sm"
+                  className="h-8 px-2"
+                  onClick={() => setViewMode('all')}
+                >
+                  <LayoutGrid className="h-4 w-4 mr-1" />
+                  Všetko
+                </Button>
+                <Button
+                  variant={viewMode === 'folders' ? 'secondary' : 'ghost'}
+                  size="sm"
+                  className="h-8 px-2"
+                  onClick={() => setViewMode('folders')}
+                >
+                  <Grid className="h-4 w-4 mr-1" />
+                  Priečinky
+                </Button>
+                <Button
+                  variant={viewMode === 'files' ? 'secondary' : 'ghost'}
+                  size="sm"
+                  className="h-8 px-2"
+                  onClick={() => setViewMode('files')}
+                >
+                  <ListIcon className="h-4 w-4 mr-1" />
+                  Súbory
+                </Button>
+              </div>
+              
+              <div className="flex gap-2 ml-auto">
+                {viewMode === 'folders' && currentFolderId && currentFolderId !== 'unassigned' && !currentSubFolderId && (
+                  <Button 
+                    onClick={() => setShowNewFolderDialog(true)} 
+                    variant="outline"
+                  >
+                    <Folder className="mr-2 h-4 w-4" />
+                    Nový priečinok
+                  </Button>
+                )}
+
+                <Button onClick={() => {
+                  // If in a folder, pre-select that patient
+                  if (currentFolderId && currentFolderId !== 'unassigned') {
+                    setSelectedPatient(currentFolderId);
+                  } else {
+                    setSelectedPatient('none');
+                  }
+                  setShowUploadDialog(true);
+                }} className="bg-gradient-to-r from-[#3b82f6] to-[#1e3a8a] text-white hover:from-[#a3e635] hover:to-[#65a30d] transition-all duration-300 shadow-md border-0">
+                  <Plus className="mr-2 h-4 w-4" />
+                  Pridať
+                </Button>
+              </div>
+           </div>
         </div>
-        <Button onClick={() => setShowUploadDialog(true)} className="bg-gradient-to-r from-[#3b82f6] to-[#1e3a8a] text-white hover:from-[#a3e635] hover:to-[#65a30d] transition-all duration-300 shadow-md border-0">
-          <Plus className="mr-2 h-4 w-4" />
-          Pridať dokument
-        </Button>
+        
+        {/* Search Bar */}
+        {(viewMode === 'files' || currentFolderId) && (
+          <div className="relative max-w-md">
+            <SearchBar
+              placeholder="Vyhľadať dokumenty a priečinky..."
+              onSearch={setSearchTerm}
+              suggestions={
+                [
+                  ...(documents ? Array.from(new Set(documents.map((d: any) => d.file_name))).map(name => ({ label: name, value: name, type: 'Dokument' })) : []),
+                  ...(subFolders && currentFolderId ? subFolders.filter((f: any) => f.patient_id === currentFolderId).map((f: any) => ({ label: f.name, value: f.name, type: 'Priečinok' })) : [])
+                ]
+              }
+            />
+          </div>
+        )}
       </div>
 
-      {/* Documents List */}
+      {/* Content Area */}
+      {(viewMode === 'folders' || viewMode === 'all') && !currentFolderId ? (
+        // Render Root Patient Folders Grid
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 justify-items-center">
+           {patientFolders.map(folder => {
+              // Count sub-folders and root-level documents (not in any sub-folder)
+              const patientSubFolders = subFolders?.filter((f: any) => f.patient_id === folder.id) || [];
+              const rootDocuments = documents?.filter((d: any) => 
+                (d.patient_id || 'unassigned') === folder.id && !d.folder_id
+              ) || [];
+              
+              const totalItems = patientSubFolders.length + rootDocuments.length;
+              
+              // Get up to 3 items for preview: sub-folders first, then root documents
+              const previewItems = [
+                ...patientSubFolders.slice(0, 3).map((f: any) => ({
+                  id: f.id,
+                  title: f.name,
+                  image: { 
+                    src: 'https://images.unsplash.com/photo-1634017839464-5c339ebe3cb4?w=800&auto=format&fit=crop'
+                  }
+                })),
+                ...rootDocuments.slice(0, Math.max(0, 3 - patientSubFolders.length)).map((d: any) => ({
+                  id: d.id,
+                  title: d.file_name,
+                  image: { 
+                    src: d.file_type === 'image' ? d.file_url : 'https://images.unsplash.com/photo-1568605114967-8130f3a36994?q=80&w=800&auto=format&fit=crop'
+                  }
+                }))
+              ];
+
+              const foldersText = patientSubFolders.length === 1 ? 'priečinok' : patientSubFolders.length < 5 ? 'priečinky' : 'priečinkov';
+              const filesText = rootDocuments.length === 1 ? 'súbor' : rootDocuments.length < 5 ? 'súbory' : 'súborov';
+
+              return (
+                <div key={folder.id} className="flex flex-col items-center">
+                  <AnimatedFolder
+                    title={folder.name}
+                    projects={previewItems}
+                    onClick={() => setCurrentFolderId(folder.id)}
+                    folderBackColor="#3b82f6"
+                    folderFrontColor="#60a5fa"
+                    folderTabColor="#2563eb"
+                    mainCardBackgroundColor="transparent"
+                    mainCardBorderWidth={0}
+                    mainCardHoverBorderWidth={0}
+                  />
+                  <p className="text-sm text-muted-foreground mt-2">
+                    {patientSubFolders.length} {foldersText}, {rootDocuments.length} {filesText}
+                  </p>
+                </div>
+              );
+            })}
+           {patientFolders.length === 0 && (
+              <div className="col-span-full text-center p-8 text-muted-foreground bg-muted/20 rounded-xl">
+                Zatiaľ žiadne priečinky
+              </div>
+           )}
+        </div>
+      ) : currentFolderId && !currentSubFolderId ? (
+         // Render Sub-Folders and/or Documents based on viewMode
+         <div className="space-y-8">
+            {/* Sub-Folders */}
+             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+               {/* Render Sub-Folders - HIDDEN in 'files' mode */}
+               {(viewMode === 'all' || viewMode === 'folders') && subFolders
+                 ?.filter((f: any) => f.patient_id === currentFolderId)
+                 .filter((f: any) => !searchTerm || f.name.toLowerCase().includes(searchTerm.toLowerCase()))
+                 .map((folder: any) => {
+                   // Get preview docs for SUB-FOLDER
+                   const folderDocs = documents
+                     ?.filter((d: any) => d.folder_id === folder.id)
+                     .slice(0, 3)
+                     .map((d: any) => ({
+                       id: d.id,
+                       title: d.file_name,
+                       image: { 
+                          src: d.file_type === 'image' ? d.file_url : 'https://images.unsplash.com/photo-1634017839464-5c339ebe3cb4?w=800&auto=format&fit=crop'
+                       }
+                     }));
+
+                   return (
+                     <div key={folder.id} className="flex justify-center">
+                       <AnimatedFolder
+                         title={folder.name}
+                         projects={folderDocs || []}
+                         onClick={() => setCurrentSubFolderId(folder.id)}
+                         folderBackColor="#3b82f6"
+                         folderFrontColor="#60a5fa"
+                         folderTabColor="#2563eb"
+                         mainCardBackgroundColor="transparent"
+                         mainCardBorderWidth={0}
+                         mainCardHoverBorderWidth={0}
+                       />
+                     </div>
+                   );
+                 })}
+
+               {/* Render Documents (Root of Patient) - SHOWN IN 'all' AND 'files' MODES */}
+               {(viewMode === 'all' || viewMode === 'files') && displayedDocuments && displayedDocuments.length > 0 ? (
+                 displayedDocuments.map((document: any) => (
+                   <Card key={document.id} className="hover:shadow-md transition-shadow">
+                     <CardHeader>
+                       <div className="flex justify-between items-start">
+                         <div className="flex-1 min-w-0">
+                           <CardTitle className="text-base truncate">{document.file_name}</CardTitle>
+                           <CardDescription className="truncate">
+                             Pacient: {document.patient?.full_name || 'Neznámy'}
+                           </CardDescription>
+                         </div>
+                         <FileText className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                       </div>
+                     </CardHeader>
+                     <CardContent>
+                       <p className="text-xs text-muted-foreground mb-2">
+                         Nahrané {format(new Date(document.created_at), 'PP')}
+                       </p>
+                       {document.description && (
+                         <p className="text-sm text-muted-foreground mb-3 line-clamp-2">{document.description}</p>
+                       )}
+                       <div className="flex gap-2 mb-3 flex-wrap">
+                         <Badge variant="secondary">{getSlovakFileType(document.file_type || 'Dokument')}</Badge>
+                         {document.file_size && (
+                           <Badge variant="outline">
+                             {(document.file_size / 1024).toFixed(2)} KB
+                           </Badge>
+                         )}
+                       </div>
+                       <div className="flex gap-1 flex-wrap">
+                         <Button
+                           variant="outline"
+                           size="sm"
+                           onClick={() => handlePreview(document)}
+                         >
+                           <Eye className="mr-2 h-4 w-4" />
+                           Zobraziť
+                         </Button>
+                         <Button
+                           variant="outline"
+                           size="sm"
+                           onClick={() => handleDownload(document.file_url, document.file_name)}
+                         >
+                           <Download className="mr-2 h-4 w-4" />
+                           Stiahnuť
+                         </Button>
+                         <Button
+                           variant="outline"
+                           size="sm"
+                           onClick={() => handleEditClick(document)}
+                         >
+                           <Pencil className="mr-2 h-4 w-4" />
+                           Upraviť
+                         </Button>
+                         <Button
+                           variant="destructive"
+                           size="sm"
+                           onClick={() => handleDelete(document.id)}
+                           disabled={deleteDocumentMutation.isPending}
+                         >
+                           <Trash2 className="mr-2 h-4 w-4" />
+                           Vymazať
+                         </Button>
+                       </div>
+                     </CardContent>
+                   </Card>
+                 ))
+               ) : (
+                  subFolders?.filter((f: any) => f.patient_id === currentFolderId).length === 0 && (
+                    <div className="col-span-full text-center p-8 text-muted-foreground">
+                      Žiadne priečinky
+                      <Button variant="link" className="mt-3 block mx-auto" onClick={() => setShowUploadDialog(true)}>
+                        Pridajte dokument
+                      </Button>
+                    </div>
+                  )
+               )}
+             </div>
+         </div>
+      ) : (
+        // Render Documents List (filteredDocuments replaced by displayedDocuments logic)
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {isLoading ? (
           <Card className="col-span-full">
@@ -319,8 +776,8 @@ const AdminDocuments = () => {
               <p className="text-center text-muted-foreground">Načítavam dokumenty...</p>
             </CardContent>
           </Card>
-        ) : filteredDocuments && filteredDocuments.length > 0 ? (
-          filteredDocuments.map((document: any) => (
+        ) : displayedDocuments && displayedDocuments.length > 0 ? (
+          displayedDocuments.map((document: any) => (
             <Card key={document.id} className="hover:shadow-md transition-shadow">
               <CardHeader>
                 <div className="flex justify-between items-start">
@@ -366,6 +823,14 @@ const AdminDocuments = () => {
                     Stiahnuť
                   </Button>
                   <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleEditClick(document)}
+                  >
+                    <Pencil className="mr-2 h-4 w-4" />
+                    Upraviť
+                  </Button>
+                  <Button
                     variant="destructive"
                     size="sm"
                     onClick={() => handleDelete(document.id)}
@@ -384,7 +849,14 @@ const AdminDocuments = () => {
               <div className="text-center">
                 <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                 <p className="text-muted-foreground">Nenašli sa žiadne dokumenty</p>
-                <Button variant="link" className="mt-3" onClick={() => setShowUploadDialog(true)}>
+                <Button variant="link" className="mt-3" onClick={() => {
+                  if (currentFolderId && currentFolderId !== 'unassigned') {
+                    setSelectedPatient(currentFolderId);
+                  } else {
+                    setSelectedPatient('none');
+                  }
+                  setShowUploadDialog(true);
+                }}>
                   Pridajte svoj prvý dokument
                 </Button>
               </div>
@@ -393,9 +865,118 @@ const AdminDocuments = () => {
         )}
       </div>
 
+      )}
+      
+      {/* Edit Dialog */}
+      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Upraviť dokument</DialogTitle>
+            <DialogDescription>
+              Zmeniť názov alebo popis dokumentu
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleEditSave} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="editName">Názov súboru</Label>
+              <Input
+                id="editName"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="editDesc">Popis</Label>
+              <Textarea
+                id="editDesc"
+                value={editDescription}
+                onChange={(e) => setEditDescription(e.target.value)}
+                rows={3}
+              />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setShowEditDialog(false)}>
+                Zrušiť
+              </Button>
+              <Button 
+                type="submit" 
+                disabled={editDocumentMutation.isPending}
+                className="bg-gradient-to-r from-[#3b82f6] to-[#1e3a8a] text-white hover:from-[#a3e635] hover:to-[#65a30d] transition-all duration-300 shadow-md border-0"
+              >
+                {editDocumentMutation.isPending ? 'Ukladám...' : 'Uložiť zmeny'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Vymazať dokument</DialogTitle>
+            <DialogDescription>
+              Naozaj chcete vymazať tento dokument? Táto akcia je nevratná.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setShowDeleteDialog(false)}>
+              Zrušiť
+            </Button>
+            <Button 
+              onClick={confirmDelete}
+              disabled={deleteDocumentMutation.isPending}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              {deleteDocumentMutation.isPending ? 'Vymazávam...' : 'Vymazať'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* New Folder Dialog */}
+      <Dialog open={showNewFolderDialog} onOpenChange={setShowNewFolderDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Vytvoriť nový priečinok</DialogTitle>
+            <DialogDescription>
+              Zadajte názov priečinka pre pacienta
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="folderName">Názov priečinka</Label>
+              <Input
+                id="folderName"
+                value={newFolderName}
+                onChange={(e) => setNewFolderName(e.target.value)}
+                placeholder="Napr. Laboratórne výsledky"
+              />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setShowNewFolderDialog(false)}>
+                Zrušiť
+              </Button>
+              <Button 
+                onClick={() => {
+                  if (newFolderName && currentFolderId && currentFolderId !== 'unassigned') {
+                    createFolderMutation.mutate({ name: newFolderName, patientId: currentFolderId });
+                  }
+                }}
+                disabled={!newFolderName || createFolderMutation.isPending}
+                className="bg-gradient-to-r from-[#3b82f6] to-[#1e3a8a] text-white hover:from-[#a3e635] hover:to-[#65a30d] transition-all duration-300 shadow-md border-0"
+              >
+                {createFolderMutation.isPending ? 'Vytváram...' : 'Vytvoriť'}
+              </Button>
+            </DialogFooter>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Upload Dialog */}
       <Dialog open={showUploadDialog} onOpenChange={setShowUploadDialog}>
-        <DialogContent>
+        <DialogContent className="max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Pridať dokument</DialogTitle>
             <DialogDescription>
@@ -405,7 +986,11 @@ const AdminDocuments = () => {
           <form onSubmit={handleUpload} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="patient">Pacient</Label>
-              <Select value={selectedPatient} onValueChange={setSelectedPatient}>
+              <Select 
+                value={selectedPatient} 
+                onValueChange={setSelectedPatient}
+                disabled={viewMode === 'folders' && currentFolderId !== null && currentFolderId !== 'unassigned'}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Vyberte pacienta alebo nechajte nepriradené" />
                 </SelectTrigger>

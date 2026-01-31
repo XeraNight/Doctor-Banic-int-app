@@ -17,6 +17,7 @@ import { MessageCircle, Send, Plus, Users, User, Paperclip, MoreVertical, Settin
 import { format } from 'date-fns';
 import DOMPurify from 'dompurify';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 
 interface ChatRoom {
   id: string;
@@ -71,13 +72,17 @@ const ChatPanel = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [usersToAdd, setUsersToAdd] = useState<string[]>([]);
 
-  // Fetch chat rooms
+  // Fetch chat rooms - only show rooms where user is a member
   const { data: rooms, isLoading: roomsLoading } = useQuery({
     queryKey: ['chat-rooms', user?.id],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('chat_rooms')
-        .select('*')
+        .select(`
+          *,
+          chat_room_members!inner(user_id)
+        `)
+        .eq('chat_room_members.user_id', user.id)
         .order('created_at', { ascending: false });
       if (error) throw error;
       return data as ChatRoom[];
@@ -521,6 +526,14 @@ const ChatPanel = () => {
     }
   };
 
+  const toggleUserSelection = (userId: string) => {
+    setSelectedUsers(prev => 
+      prev.includes(userId)
+        ? prev.filter(id => id !== userId)
+        : [...prev, userId]
+    );
+  };
+
   const renderAttachment = (msg: ChatMessage) => {
     if (!msg.attachment_url) return null;
 
@@ -574,84 +587,77 @@ const ChatPanel = () => {
         <CardHeader className="pb-3">
           <div className="flex justify-between items-center">
             <CardTitle className="text-sm">Chats</CardTitle>
-            <Dialog open={showNewChatDialog} onOpenChange={setShowNewChatDialog}>
-              <DialogTrigger asChild>
-                <Button size="icon" variant="ghost" className="h-6 w-6">
-                  <Plus className="h-4 w-4" />
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>New Chat</DialogTitle>
-                </DialogHeader>
-                <div className="space-y-4 pt-4">
-                  <Input
-                    placeholder="Chat name (optional)"
-                    value={chatName}
-                    onChange={(e) => setChatName(e.target.value)}
-                  />
-                  <div className="flex gap-2">
+            {userRole !== 'patient' && (
+              <Dialog open={showNewChatDialog} onOpenChange={setShowNewChatDialog}>
+                <DialogTrigger asChild>
+                  <Button size="icon" variant="ghost" className="h-6 w-6">
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>New Chat</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4 pt-4">
+                    <Input
+                      placeholder="Chat name (optional)"
+                      value={chatName}
+                      onChange={(e) => setChatName(e.target.value)}
+                    />
+                    <div className="flex gap-2">
                     <Button
-                      variant={!isTeamChat ? 'default' : 'outline'}
+                      variant="outline"
                       size="sm"
                       onClick={() => setIsTeamChat(false)}
+                      className={!isTeamChat ? 'bg-gradient-to-r from-[#3b82f6] to-[#1e3a8a] text-white hover:from-[#60a5fa] hover:to-[#3b82f6] transition-all duration-300 border-0' : 'text-muted-foreground'}
                     >
                       <User className="mr-2 h-4 w-4" />
                       Private
                     </Button>
                     <Button
-                      variant={isTeamChat ? 'default' : 'outline'}
+                      variant="outline"
                       size="sm"
                       onClick={() => setIsTeamChat(true)}
+                      className={isTeamChat ? 'bg-gradient-to-r from-[#3b82f6] to-[#1e3a8a] text-white hover:from-[#60a5fa] hover:to-[#3b82f6] transition-all duration-300 border-0' : 'text-muted-foreground'}
                     >
                       <Users className="mr-2 h-4 w-4" />
                       Team
                     </Button>
+                    </div>
+                    
+                     <div className="space-y-2">
+                       <Label>Select Participants</Label>
+                       <ScrollArea className="h-[200px] border rounded-md p-2">
+                          {isTeamChat ? (
+                             <div className="space-y-2">
+                                {/* Team selection logic/UI would go here */}
+                                <p className="text-sm text-muted-foreground p-2">Team chat will include all members of the selected team.</p>
+                             </div>
+                          ) : (
+                             <div className="space-y-2">
+                                {allUsers?.map((u) => (
+                                   <div 
+                                      key={u.id} 
+                                      className={`flex items-center gap-2 p-2 rounded-md cursor-pointer hover:bg-muted ${selectedUsers.includes(u.id) ? 'bg-muted' : ''}`}
+                                      onClick={() => toggleUserSelection(u.id)}
+                                   >
+                                      <Checkbox checked={selectedUsers.includes(u.id)} onCheckedChange={() => toggleUserSelection(u.id)} />
+                                      <span className="text-sm">{u.full_name || u.email}</span>
+                                      <Badge variant="outline" className="ml-auto text-xs">User</Badge>
+                                   </div>
+                                ))}
+                             </div>
+                          )}
+                       </ScrollArea>
+                    </div>
+
+                    <Button onClick={() => createRoomMutation.mutate()} disabled={!isTeamChat && selectedUsers.length === 0} className="w-full bg-gradient-to-r from-[#3b82f6] to-[#1e3a8a] text-white hover:from-[#60a5fa] hover:to-[#3b82f6] transition-all duration-300 border-0">
+                      Create Chat
+                    </Button>
                   </div>
-                  <div className="space-y-2 max-h-48 overflow-auto">
-                    <p className="text-sm text-muted-foreground">Select participants:</p>
-                    {allUsers?.map((u) => (
-                      <div
-                        key={u.id}
-                        className={`flex items-center gap-3 p-2 rounded-md cursor-pointer transition-all border ${selectedUsers.includes(u.id)
-                          ? 'bg-primary/10 border-primary shadow-sm'
-                          : 'hover:bg-accent border-transparent'
-                          }`}
-                        onClick={() => {
-                          if (!isTeamChat) {
-                            // Private mode: Single select
-                            setSelectedUsers(prev => prev.includes(u.id) ? [] : [u.id]);
-                          } else {
-                            // Team mode: Multi select
-                            setSelectedUsers(prev =>
-                              prev.includes(u.id)
-                                ? prev.filter(id => id !== u.id)
-                                : [...prev, u.id]
-                            );
-                          }
-                        }}
-                      >
-                        <div className={`h-4 w-4 rounded-full border flex items-center justify-center ${selectedUsers.includes(u.id) ? 'bg-primary border-primary' : 'border-muted-foreground'
-                          }`}>
-                          {selectedUsers.includes(u.id) && <div className="h-2 w-2 rounded-full bg-white" />}
-                        </div>
-                        <div className="flex-1 overflow-hidden">
-                          <p className="text-sm font-medium truncate">{u.full_name || u.email}</p>
-                          <p className="text-xs text-muted-foreground truncate opacity-70">{u.email}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  <Button
-                    onClick={() => createRoomMutation.mutate()}
-                    disabled={selectedUsers.length === 0 || createRoomMutation.isPending}
-                    className="w-full"
-                  >
-                    Create Chat
-                  </Button>
-                </div>
-              </DialogContent>
-            </Dialog>
+                </DialogContent>
+              </Dialog>
+            )}
           </div>
         </CardHeader>
         <CardContent className="p-2 flex-1 flex flex-col min-h-0">
@@ -728,12 +734,12 @@ const ChatPanel = () => {
                     Add Member
                   </DropdownMenuItem>
 
-                  {userRole === 'admin' && (
-                    <DropdownMenuItem onClick={() => setShowManageMembersDialog(true)}>
-                      <Users className="mr-2 h-4 w-4" />
-                      Manage Members
-                    </DropdownMenuItem>
-                  )}
+
+                  <DropdownMenuItem onClick={() => setShowManageMembersDialog(true)}>
+                    <Users className="mr-2 h-4 w-4" />
+                    Manage Members
+                  </DropdownMenuItem>
+
 
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={openEditDialog}>
@@ -870,7 +876,12 @@ const ChatPanel = () => {
                     disabled={isUploading}
                     autoComplete="off"
                   />
-                  <Button type="submit" size="icon" disabled={sendMessageMutation.isPending || isUploading}>
+                  <Button
+                    type="submit"
+                    size="icon"
+                    disabled={sendMessageMutation.isPending || isUploading}
+                    className="bg-gradient-to-r from-[#3b82f6] to-[#1e3a8a] text-white hover:from-[#60a5fa] hover:to-[#3b82f6] transition-all duration-300 border-0"
+                  >
                     <Send className="h-4 w-4" />
                   </Button>
                 </form>
@@ -887,7 +898,7 @@ const ChatPanel = () => {
         )}
       </Card>
 
-      {/* Manage Members Dialog (Admin Only) */}
+      {/* Manage Members Dialog */}
       <Dialog open={showManageMembersDialog} onOpenChange={setShowManageMembersDialog}>
         <DialogContent>
           <DialogHeader>
@@ -955,7 +966,7 @@ const ChatPanel = () => {
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setShowEditDialog(false)}>Cancel</Button>
-              <Button onClick={() => renameChatMutation.mutate(editingName)} disabled={renameChatMutation.isPending}>
+              <Button onClick={() => renameChatMutation.mutate(editingName)} disabled={renameChatMutation.isPending} className="bg-gradient-to-r from-[#3b82f6] to-[#1e3a8a] text-white hover:from-[#60a5fa] hover:to-[#3b82f6] transition-all duration-300 border-0">
                 Save Changes
               </Button>
             </DialogFooter>
@@ -1005,6 +1016,7 @@ const ChatPanel = () => {
               <Button
                 onClick={() => addMemberMutation.mutate()}
                 disabled={usersToAdd.length === 0 || addMemberMutation.isPending}
+                className="bg-gradient-to-r from-[#3b82f6] to-[#1e3a8a] text-white hover:from-[#60a5fa] hover:to-[#3b82f6] transition-all duration-300 border-0"
               >
                 Add Members
               </Button>

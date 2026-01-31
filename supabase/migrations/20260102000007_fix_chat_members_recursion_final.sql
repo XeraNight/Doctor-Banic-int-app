@@ -32,6 +32,7 @@ DROP POLICY IF EXISTS "rooms_select" ON public.chat_rooms;
 -- ========================================
 
 -- Chat Room Members: SELECT -> See members if I am a member (or created the room)
+DROP POLICY IF EXISTS "members_select_final" ON public.chat_room_members;
 CREATE POLICY "members_select_final"
 ON public.chat_room_members FOR SELECT
 TO authenticated
@@ -49,6 +50,7 @@ USING (
 );
 
 -- Chat Rooms: SELECT -> See rooms if created by me OR I am a member
+DROP POLICY IF EXISTS "rooms_select_final" ON public.chat_rooms;
 CREATE POLICY "rooms_select_final"
 ON public.chat_rooms FOR SELECT
 TO authenticated
@@ -65,6 +67,8 @@ USING (
 -- Re-apply message policies to use function for consistency (optional but cleaner)
 DROP POLICY IF EXISTS "messages_insert" ON public.chat_messages;
 DROP POLICY IF EXISTS "messages_select" ON public.chat_messages;
+DROP POLICY IF EXISTS "messages_insert_final" ON public.chat_messages;
+DROP POLICY IF EXISTS "messages_select_final" ON public.chat_messages;
 
 CREATE POLICY "messages_insert_final"
 ON public.chat_messages FOR INSERT

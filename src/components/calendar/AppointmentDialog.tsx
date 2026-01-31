@@ -69,19 +69,49 @@ const AppointmentDialog = ({ open, onOpenChange, viewType, appointment }: Appoin
   });
 
   // Get current user's patient record for patient view
-  const { data: currentPatient } = useQuery({
+  const { data: currentPatient, isLoading } = useQuery({
     queryKey: ['current-patient', user?.id],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('patients')
         .select('*')
         .eq('user_id', user?.id)
-        .single();
+        .eq('user_id', user?.id)
+        .maybeSingle();
+
       if (error) throw error;
       return data;
     },
-    enabled: viewType === 'patient' && open,
+    enabled: viewType === 'patient' && open && !!user,
   });
+
+  // Auto-create patient profile if missing
+  const createProfileMutation = useMutation({
+    mutationFn: async () => {
+      if (!user) return;
+      const { error } = await supabase
+        .from('patients')
+        .insert({
+          user_id: user.id,
+          full_name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'Unknown',
+          email: user.email || '',
+        });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['current-patient'] });
+      toast({ title: 'Profile Created', description: 'Your patient profile has been initialized.' });
+    },
+    onError: (err) => {
+      console.error('Failed to create profile:', err);
+    }
+  });
+
+  useEffect(() => {
+    if (viewType === 'patient' && open && !isLoading && currentPatient === null && user) {
+      createProfileMutation.mutate();
+    }
+  }, [currentPatient, isLoading, viewType, open, user]);
 
   const uploadFile = async (appointmentId: string, patientId: string) => {
     if (!selectedFile) return;
@@ -221,13 +251,16 @@ const AppointmentDialog = ({ open, onOpenChange, viewType, appointment }: Appoin
       return;
     }
 
-    const patientId = viewType === 'patient' ? currentPatient?.id : selectedPatient;
 
-    if (!patientId) {
-      toast({
-        title: 'Error',
-        description: 'Patient information is required',
-        variant: 'destructive',
+
+    // Determine patient ID
+    let patientId = viewType === 'patient' ? currentPatient?.id : selectedPatient;
+
+    // Retry fetching/waiting if auto-creation is happening or just slow
+    if (viewType === 'patient' && !patientId) {
+       toast({
+        title: 'Please wait',
+        description: 'Initializing your profile...',
       });
       return;
     }
@@ -243,6 +276,7 @@ const AppointmentDialog = ({ open, onOpenChange, viewType, appointment }: Appoin
       status: viewType === 'patient' ? 'pending' : status,
       room: room || null,
       is_team_calendar: false,
+      created_by: user?.id,
     };
 
     saveAppointmentMutation.mutate(appointmentData);
@@ -415,12 +449,21 @@ const AppointmentDialog = ({ open, onOpenChange, viewType, appointment }: Appoin
           </Collapsible>
 
           <div className="flex gap-3 pt-2">
-            <Button type="submit" disabled={saveAppointmentMutation.isPending || uploading} className="w-full">
+            <Button 
+              type="submit" 
+              disabled={saveAppointmentMutation.isPending || uploading} 
+              className="w-full bg-gradient-to-r from-[#3b82f6] to-[#1e3a8a] text-white hover:from-[#a3e635] hover:to-[#65a30d] transition-all duration-300 shadow-md border-0"
+            >
               {saveAppointmentMutation.isPending || uploading
                 ? 'Saving...' 
                 : appointment ? 'Update Appointment' : 'Create Appointment'}
             </Button>
           </div>
+          {viewType === 'patient' && !currentPatient && open && (
+            <p className="text-sm text-yellow-600 text-center">
+              {createProfileMutation.isPending ? 'Vytváram profil...' : 'Načítavam profil pacienta...'}
+            </p>
+          )}
         </form>
       </DialogContent>
     </Dialog>

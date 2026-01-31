@@ -4,11 +4,13 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 import { useToast } from '@/hooks/use-toast';
 import { Activity } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { Turnstile } from '@marsidev/react-turnstile';
 import logo from '@/assets/logo.png';
 
 const Auth = () => {
@@ -17,6 +19,8 @@ const Auth = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
+  const [consentGiven, setConsentGiven] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string>('');
   const [loading, setLoading] = useState(false);
 
   const { signIn, signUp, user } = useAuth();
@@ -52,7 +56,7 @@ const Auth = () => {
           setIsForgotPassword(false);
         }
       } else if (isLogin) {
-        const { error } = await signIn(email, password);
+        const { error } = await signIn(email, password, captchaToken);
         if (error) {
           toast({
             title: 'Chyba',
@@ -77,7 +81,17 @@ const Auth = () => {
           return;
         }
 
-        const { error } = await signUp(email, password, fullName);
+        if (!consentGiven) {
+          toast({
+            title: 'Chyba',
+            description: 'Musíte súhlasiť so spracovaním osobných údajov',
+            variant: 'destructive',
+          });
+          setLoading(false);
+          return;
+        }
+
+        const { error } = await signUp(email, password, fullName, captchaToken);
         if (error) {
           toast({
             title: 'Chyba',
@@ -93,6 +107,7 @@ const Auth = () => {
         }
       }
     } catch (error: any) {
+      console.error("Login error details:", error);
       toast({
         title: 'Chyba',
         description: error.message || 'Vyskytla sa chyba',
@@ -154,7 +169,35 @@ const Auth = () => {
                 />
               </div>
             )}
-            <Button type="submit" className="w-full" disabled={loading}>
+            {!isLogin && !isForgotPassword && (
+              <div className="flex items-center space-x-2">
+                <Checkbox 
+                  id="terms" 
+                  checked={consentGiven}
+                  onCheckedChange={(checked) => setConsentGiven(checked as boolean)}
+                />
+                <Label htmlFor="terms" className="text-sm font-normal">
+                  Súhlasím so{' '}
+                  <a href="/#/privacy-policy" target="_blank" className="text-primary hover:underline">
+                    spracovaním osobných údajov
+                  </a>
+                </Label>
+              </div>
+            )}
+            
+            {/* Cloudflare Turnstile CAPTCHA */}
+            <div className="flex justify-center py-2">
+              <Turnstile 
+                siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY || "0x4AAAAAAA-placeholder-site-key"} 
+                onSuccess={(token) => setCaptchaToken(token)}
+                options={{
+                  theme: 'light',
+                  size: 'flexible'
+                }}
+              />
+            </div>
+
+            <Button type="submit" className="w-full bg-gradient-to-r from-[#3b82f6] to-[#1e3a8a] text-white hover:from-[#a3e635] hover:to-[#65a30d] transition-all duration-300 shadow-md border-0" disabled={loading}>
               {loading ? 'Spracovávam...' : isForgotPassword ? 'Odoslať email' : isLogin ? 'Prihlásiť sa' : 'Vytvoriť účet'}
             </Button>
           </form>

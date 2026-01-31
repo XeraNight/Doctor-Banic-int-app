@@ -279,7 +279,7 @@ const NotesPanel = ({ compact = false }: NotesPanelProps) => {
           <Button 
             size="sm" 
             onClick={() => setIsCreating(!isCreating)}
-            className="bg-gradient-to-r from-[#3b82f6] to-[#1e3a8a] text-white hover:from-[#a3e635] hover:to-[#65a30d] transition-all duration-300 shadow-md border-0"
+            className="bg-gradient-to-r from-[#3b82f6] to-[#1e3a8a] text-white hover:from-[#60a5fa] hover:to-[#3b82f6] transition-all duration-300 shadow-md border-0"
           >
             {isCreating ? <X className="mr-2 h-4 w-4" /> : <Plus className="mr-2 h-4 w-4" />}
             {isCreating ? 'Zrušiť' : 'Nová poznámka'}
