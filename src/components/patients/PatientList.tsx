@@ -12,6 +12,8 @@ import { useState } from 'react';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { SearchBar, type SearchSuggestion } from '@/components/ui/search-bar';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import PatientDocumentManager from './PatientDocumentManager';
 
 const PatientList = () => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -302,7 +304,7 @@ const PatientList = () => {
                 <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
                   Zrušiť
                 </Button>
-                <Button type="submit" disabled={createPatientMutation.isPending}>
+                <Button type="submit" disabled={createPatientMutation.isPending} className="bg-gradient-to-r from-[#3b82f6] to-[#1e3a8a] text-white hover:from-[#a3e635] hover:to-[#65a30d] transition-all duration-300 shadow-md border-0">
                   {createPatientMutation.isPending ? 'Pridávam...' : 'Pridať pacienta'}
                 </Button>
               </DialogFooter>
@@ -319,108 +321,128 @@ const PatientList = () => {
                 Upravte informácie o pacientovi
               </DialogDescription>
             </DialogHeader>
-            <form onSubmit={handleEditSubmit}>
-              <div className="grid gap-4 py-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="edit_full_name">Celé meno *</Label>
-                    <Input
-                      id="edit_full_name"
-                      value={formData.full_name}
-                      onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
-                      required
+            <div className="py-2">
+              <Tabs defaultValue="info" className="w-full">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="info">Informácie</TabsTrigger>
+                  <TabsTrigger value="documents">Dokumenty</TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="info" className="mt-4">
+                  <form onSubmit={handleEditSubmit}>
+                    <div className="grid gap-4 py-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="edit_full_name">Celé meno *</Label>
+                          <Input
+                            id="edit_full_name"
+                            value={formData.full_name}
+                            onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
+                            required
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="edit_email">Email *</Label>
+                          <Input
+                            id="edit_email"
+                            type="email"
+                            value={formData.email}
+                            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                            required
+                          />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="edit_phone">Telefón</Label>
+                          <Input
+                            id="edit_phone"
+                            value={formData.phone}
+                            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="edit_date_of_birth">Dátum narodenia</Label>
+                          <Input
+                            id="edit_date_of_birth"
+                            type="date"
+                            value={formData.date_of_birth}
+                            onChange={(e) => setFormData({ ...formData, date_of_birth: e.target.value })}
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="edit_insurance_company">Poisťovňa</Label>
+                        <Input
+                          id="edit_insurance_company"
+                          value={formData.insurance_company}
+                          onChange={(e) => setFormData({ ...formData, insurance_company: e.target.value })}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="edit_address">Adresa</Label>
+                        <Input
+                          id="edit_address"
+                          value={formData.address}
+                          onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="edit_emergency_contact">Kontakt v núdzi</Label>
+                          <Input
+                            id="edit_emergency_contact"
+                            value={formData.emergency_contact}
+                            onChange={(e) => setFormData({ ...formData, emergency_contact: e.target.value })}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="edit_emergency_phone">Telefón v núdzi</Label>
+                          <Input
+                            id="edit_emergency_phone"
+                            value={formData.emergency_phone}
+                            onChange={(e) => setFormData({ ...formData, emergency_phone: e.target.value })}
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="edit_allergies">Alergie</Label>
+                        <Input
+                          id="edit_allergies"
+                          value={formData.allergies}
+                          onChange={(e) => setFormData({ ...formData, allergies: e.target.value })}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="edit_medical_history">Lekárska história</Label>
+                        <Input
+                          id="edit_medical_history"
+                          value={formData.medical_history}
+                          onChange={(e) => setFormData({ ...formData, medical_history: e.target.value })}
+                        />
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button type="button" variant="outline" onClick={() => setEditDialogOpen(false)}>
+                        Zrušiť
+                      </Button>
+                      <Button type="submit" disabled={updatePatientMutation.isPending} className="bg-gradient-to-r from-[#3b82f6] to-[#1e3a8a] text-white hover:from-[#a3e635] hover:to-[#65a30d] transition-all duration-300 shadow-md border-0">
+                        {updatePatientMutation.isPending ? 'Ukladám...' : 'Uložiť zmeny'}
+                      </Button>
+                    </DialogFooter>
+                  </form>
+                </TabsContent>
+
+                <TabsContent value="documents" className="mt-4 min-h-[400px]">
+                  {editingPatient && (
+                    <PatientDocumentManager 
+                      patientId={editingPatient.id} 
+                      patientName={editingPatient.full_name} 
                     />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="edit_email">Email *</Label>
-                    <Input
-                      id="edit_email"
-                      type="email"
-                      value={formData.email}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      required
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="edit_phone">Telefón</Label>
-                    <Input
-                      id="edit_phone"
-                      value={formData.phone}
-                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="edit_date_of_birth">Dátum narodenia</Label>
-                    <Input
-                      id="edit_date_of_birth"
-                      type="date"
-                      value={formData.date_of_birth}
-                      onChange={(e) => setFormData({ ...formData, date_of_birth: e.target.value })}
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="edit_insurance_company">Poisťovňa</Label>
-                  <Input
-                    id="edit_insurance_company"
-                    value={formData.insurance_company}
-                    onChange={(e) => setFormData({ ...formData, insurance_company: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="edit_address">Adresa</Label>
-                  <Input
-                    id="edit_address"
-                    value={formData.address}
-                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="edit_emergency_contact">Kontakt v núdzi</Label>
-                    <Input
-                      id="edit_emergency_contact"
-                      value={formData.emergency_contact}
-                      onChange={(e) => setFormData({ ...formData, emergency_contact: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="edit_emergency_phone">Telefón v núdzi</Label>
-                    <Input
-                      id="edit_emergency_phone"
-                      value={formData.emergency_phone}
-                      onChange={(e) => setFormData({ ...formData, emergency_phone: e.target.value })}
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="edit_allergies">Alergie</Label>
-                  <Input
-                    id="edit_allergies"
-                    value={formData.allergies}
-                    onChange={(e) => setFormData({ ...formData, allergies: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="edit_medical_history">Lekárska história</Label>
-                  <Input
-                    id="edit_medical_history"
-                    value={formData.medical_history}
-                    onChange={(e) => setFormData({ ...formData, medical_history: e.target.value })}
-                  />
-                </div>
-              </div>
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setEditDialogOpen(false)}>
-                  Zrušiť
-                </Button>
-                <Button type="submit" disabled={updatePatientMutation.isPending}>
-                  {updatePatientMutation.isPending ? 'Ukladám...' : 'Uložiť zmeny'}
-                </Button>
-              </DialogFooter>
-            </form>
+                  )}
+                </TabsContent>
+              </Tabs>
+            </div>
           </DialogContent>
         </Dialog>
 

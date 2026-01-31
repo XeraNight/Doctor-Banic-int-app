@@ -12,8 +12,8 @@ export const GlobalNotificationButton = () => {
     return (
         <Popover open={open} onOpenChange={setOpen}>
             <PopoverTrigger asChild>
-                <Button variant="ghost" className="relative text-white/80 hover:text-white hover:bg-white/10 p-3">
-                    <Bell className="h-8 w-8" />
+                <Button variant="ghost" className="relative text-gray-500 hover:text-gray-700 hover:bg-gray-100 p-3">
+                    <Bell className="h-6 w-6" />
                     {unreadCount > 0 && (
                         <span className="absolute top-1.5 right-1.5 flex h-2.5 w-2.5">
                             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>

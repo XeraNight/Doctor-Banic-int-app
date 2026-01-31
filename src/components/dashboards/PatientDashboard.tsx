@@ -6,34 +6,34 @@ import { useNavigate } from 'react-router-dom';
 import CalendarView from '@/components/calendar/CalendarView';
 // import NotificationCenter from '@/components/notifications/NotificationCenter';
 import PatientDocuments from '@/components/patients/PatientDocuments';
-import ProjectImport from '@/components/projects/ProjectImport';
+
 
 import { GlobalNotificationButton } from '@/components/notifications/GlobalNotificationButton';
+import ChatPanel from '@/components/chat/ChatPanel';
 
 import logo from '@/assets/logo.png';
 
 const PatientDashboard = () => {
   const { signOut, user } = useAuth();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'appointments' | 'documents' | 'projects'>('appointments');
+  const [activeTab, setActiveTab] = useState<'appointments' | 'documents' | 'messages'>('appointments');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const menuItems = [
     { id: 'appointments', label: 'Moje termíny', icon: Calendar },
     { id: 'documents', label: 'Moje dokumenty', icon: FileText },
-    { id: 'projects', label: 'Projekty', icon: Upload },
-    { id: 'projects', label: 'Projekty', icon: Upload },
+    { id: 'messages', label: 'Správy', icon: Bell },
   ];
 
   return (
     <div className="flex h-screen bg-transparent">
       {/* Sidebar - Desktop */}
-      <aside className="hidden md:flex w-64 flex-col border-r border-white/10 bg-sidebar backdrop-blur-xl transition-all duration-300">
+      <aside className="hidden md:flex w-64 flex-col border-r border-white/10 bg-sidebar backdrop-blur-xl transition-all duration-300 relative z-40">
         <div className="p-6 border-b border-white/10">
           <img src={logo} alt="Doktor Baník" className="h-12 w-auto mb-2" />
           <p className="text-sm text-sidebar-foreground/60 mt-1">Pacientsky portál</p>
         </div>
-        <nav className="flex-1 p-4 space-y-2">
+        <nav className="flex-1 p-4 space-y-2 overflow-y-auto min-h-0">
           {menuItems.map((item) => (
             <Button
               key={item.id}
@@ -109,7 +109,7 @@ const PatientDashboard = () => {
               <h2 className="text-3xl font-bold text-white">
                 {activeTab === 'appointments' && 'Moje termíny'}
                 {activeTab === 'documents' && 'Moje lekárske dokumenty'}
-                {activeTab === 'projects' && 'Import projektov'}
+                {activeTab === 'messages' && 'Správy'}
               </h2>
               <div className="ml-auto">
                 <GlobalNotificationButton />
@@ -118,15 +118,17 @@ const PatientDashboard = () => {
             <p className="text-white/80 mt-1">
               {activeTab === 'appointments' && 'Prezeranie a správa termínov'}
               {activeTab === 'documents' && 'Nahrávanie a prezeranie lekárskych dokumentov'}
-              {activeTab === 'projects' && 'Import a náhľad štruktúry projektov'}
-              {activeTab === 'projects' && 'Import a náhľad štruktúry projektov'}
+              {activeTab === 'messages' && 'Komunikácia s lekármi a personálom'}
             </p>
           </div>
 
           {activeTab === 'appointments' && <CalendarView viewType="patient" />}
           {activeTab === 'documents' && <PatientDocuments />}
-          {activeTab === 'projects' && <ProjectImport />}
-          {activeTab === 'projects' && <ProjectImport />}
+          {activeTab === 'messages' && (
+            <div className="h-[calc(100vh-200px)]">
+              <ChatPanel />
+            </div>
+          )}
         </div>
       </main>
     </div>

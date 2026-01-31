@@ -11,6 +11,7 @@ ON CONFLICT (id) DO NOTHING;
 
 -- RLS Policies for Storage
 -- Allow Authenticated users to Upload to chat-attachments
+DROP POLICY IF EXISTS "Authenticated users can upload chat attachments" ON storage.objects;
 CREATE POLICY "Authenticated users can upload chat attachments"
 ON storage.objects FOR INSERT
 TO authenticated
@@ -20,6 +21,7 @@ WITH CHECK (
 );
 
 -- Allow Authenticated users to Read chat attachments
+DROP POLICY IF EXISTS "Authenticated users can read chat attachments" ON storage.objects;
 CREATE POLICY "Authenticated users can read chat attachments"
 ON storage.objects FOR SELECT
 TO authenticated
@@ -29,6 +31,7 @@ USING (
 );
 
 -- Allow Users to Delete their own attachments (optional but good practice)
+DROP POLICY IF EXISTS "Users can delete their own chat attachments" ON storage.objects;
 CREATE POLICY "Users can delete their own chat attachments"
 ON storage.objects FOR DELETE
 TO authenticated

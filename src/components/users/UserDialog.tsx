@@ -62,8 +62,8 @@ const UserDialog = ({ open, onOpenChange, user, defaultRole }: UserDialogProps) 
       // Admin can assign any role except admin when editing
       return user ? ['doctor', 'zamestnanec', 'patient'] : ['admin', 'doctor', 'zamestnanec', 'patient'];
     } else if (currentUserRole === 'doctor') {
-      // Doctor can only assign patient and zamestnanec
-      return ['patient', 'zamestnanec'];
+      // Doctor can assign patient, zamestnanec, and other doctors
+      return ['patient', 'zamestnanec', 'doctor'];
     }
     return ['patient']; // Default fallback
   };
@@ -356,6 +356,7 @@ const UserDialog = ({ open, onOpenChange, user, defaultRole }: UserDialogProps) 
             <Button
               type="submit"
               disabled={createUserMutation.isPending || updateUserMutation.isPending}
+              className="bg-gradient-to-r from-[#3b82f6] to-[#1e3a8a] text-white hover:from-[#a3e635] hover:to-[#65a30d] transition-all duration-300 shadow-md border-0"
             >
               {(createUserMutation.isPending || updateUserMutation.isPending)
                 ? 'Ukladám...'

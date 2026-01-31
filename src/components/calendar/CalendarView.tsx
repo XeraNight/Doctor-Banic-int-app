@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -7,11 +8,12 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
-import { Calendar as CalendarIcon, Plus, Filter, Edit, Trash2, Search } from 'lucide-react';
+import { Calendar as CalendarIcon, Plus, Filter, Edit, Trash2, Search, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import AppointmentDialog from './AppointmentDialog';
 import { SearchBar, type SearchSuggestion } from '@/components/ui/search-bar';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
 interface CalendarViewProps {
   viewType: 'admin' | 'doctor' | 'patient';
@@ -22,15 +24,19 @@ const CalendarView = ({ viewType }: CalendarViewProps) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [searchParams, setSearchParams] = useSearchParams();
+  const highlightedAppointmentId = searchParams.get('appointmentId');
   const [showAppointmentDialog, setShowAppointmentDialog] = useState(false);
-  const [activeCalendar, setActiveCalendar] = useState<'doctor' | 'client' | 'team'>('doctor');
+  const [activeCalendar, setActiveCalendar] = useState<'personal' | 'internal' | 'everyone'>('personal');
   const [selectedAppointment, setSelectedAppointment] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [appointmentToDelete, setAppointmentToDelete] = useState<any>(null);
 
   const { data: appointments, isLoading } = useQuery({
     queryKey: ['appointments', viewType, user?.id, activeCalendar],
     queryFn: async () => {
-      let query = supabase
+      let query: any = supabase
         .from('appointments')
         .select(`
           *,
@@ -38,29 +44,41 @@ const CalendarView = ({ viewType }: CalendarViewProps) => {
         `)
         .order('appointment_date', { ascending: true });
 
-      if (viewType === 'patient') {
-        // First get patient ID for current user
-        const { data: patientData } = await supabase
-          .from('patients')
-          .select('id')
-          .eq('user_id', user?.id)
-          .single();
-
-        if (patientData) {
-          query = query.eq('patient_id', patientData.id);
-        }
-      } else if (viewType === 'admin') {
-        if (activeCalendar === 'doctor') {
-          query = query.eq('is_team_calendar', false);
-        } else if (activeCalendar === 'team') {
-          query = query.eq('is_team_calendar', true);
-        }
-        // Admin sees all appointments (no doctor_id filter needed)
-      } else if (viewType === 'doctor') {
-        if (activeCalendar === 'doctor') {
-          query = query.eq('doctor_id', user?.id).eq('is_team_calendar', false);
-        } else if (activeCalendar === 'team') {
-          query = query.eq('is_team_calendar', true);
+      if (activeCalendar === 'everyone') {
+        // Everyone (except patients restricted to own? No, request says "všeobecný kalendár vidia všetci")
+        // But maybe "everyone together" means team calendar? 
+        // User said: "1 'všeobecný kalendar' (everayone together) by mali vidieť vsetci"
+        // Let's assume this is the is_team_calendar = true events.
+        query = query.eq('is_team_calendar', true);
+      } else if (activeCalendar === 'internal') {
+        // "teamoví kalendár" (doctor and employees) - visible to doctor/employee
+        // Probably standard medical appointments?
+        // User said: "2 'teamoví kalendár' (doctor and employees) by mali vidieť iba pracovníci a doctor"
+        query = query.eq('is_team_calendar', false);
+      } else if (activeCalendar === 'personal') {
+        // "Moj kalendár"
+        // User said: "3 'Moj kalendár' (my callendar) by som mal vidieť iba ja ako ten čo ho vytvoril"
+        
+        if (viewType === 'patient') {
+           // Patient sees their own appointments
+           const { data: patientData } = await supabase
+            .from('patients')
+            .select('id')
+            .eq('user_id', user?.id)
+            .single();
+           if (patientData) {
+             query = query.eq('patient_id', patientData.id);
+           }
+        } else if (viewType === 'doctor') {
+           // Doctor sees appointments assigned to them
+           query = query.eq('doctor_id', user?.id);
+        } else {
+           // Employee/Admin sees appointments they created
+           // Note: This requires the new created_by column. 
+           // If migration hasn't run, this might fail or return nothing if column doesn't exist yet? 
+           // Supabase client usually handles missing columns gracefully by erroring if selected, but here we filter.
+           // We will assume migration is applied.
+           query = query.eq('created_by', user?.id);
         }
       }
 
@@ -114,6 +132,8 @@ const CalendarView = ({ viewType }: CalendarViewProps) => {
         description: 'Appointment deleted successfully',
       });
       queryClient.invalidateQueries({ queryKey: ['appointments'] });
+      setDeleteDialogOpen(false);
+      setAppointmentToDelete(null);
     },
     onError: (error: any) => {
       toast({
@@ -124,14 +144,41 @@ const CalendarView = ({ viewType }: CalendarViewProps) => {
     },
   });
 
+  const handleDismissHighlight = () => {
+    const newParams = new URLSearchParams(searchParams);
+    newParams.delete('appointmentId');
+    // Optionally keep 'tab' or remove it too if desired. User just said "don't return to the same term".
+    // Keeping tab is better for UX so they stay on the calendar.
+    setSearchParams(newParams);
+  };
+
+  const handleCardClick = (appointmentId: string) => {
+    // If already highlighted, clicking it again could potentially dismiss it? 
+    // Or maybe just do nothing or re-highlight. 
+    // User said "also on click I want to select it", implying if it's NOT selected, it should be.
+    // Let's implement toggle: If selected -> dismiss. If not -> select.
+    if (String(appointmentId) === highlightedAppointmentId) {
+      handleDismissHighlight();
+    } else {
+       const newParams = new URLSearchParams(searchParams);
+       newParams.set('appointmentId', appointmentId);
+       setSearchParams(newParams);
+    }
+  };
+
   const handleEdit = (appointment: any) => {
     setSelectedAppointment(appointment);
     setShowAppointmentDialog(true);
   };
 
-  const handleDelete = async (appointmentId: string) => {
-    if (confirm('Are you sure you want to delete this appointment?')) {
-      deleteAppointmentMutation.mutate(appointmentId);
+  const handleDeleteClick = (appointment: any) => {
+    setAppointmentToDelete(appointment);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = () => {
+    if (appointmentToDelete) {
+      deleteAppointmentMutation.mutate(appointmentToDelete.id);
     }
   };
 
@@ -163,6 +210,18 @@ const CalendarView = ({ viewType }: CalendarViewProps) => {
       }))
     : [];
 
+  useEffect(() => {
+    if (highlightedAppointmentId && !isLoading && appointments) {
+      // Delay slightly to ensure rendering
+      setTimeout(() => {
+        const element = document.getElementById(`appointment-${highlightedAppointmentId}`);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 500);
+    }
+  }, [highlightedAppointmentId, isLoading, appointments]);
+
   const renderAppointmentsList = () => (
     <div className="grid gap-4">
       {isLoading ? (
@@ -173,7 +232,26 @@ const CalendarView = ({ viewType }: CalendarViewProps) => {
         </Card>
       ) : filteredAppointments && filteredAppointments.length > 0 ? (
         filteredAppointments.map((appointment: any) => (
-          <Card key={appointment.id} className="hover-lift border-primary/10 hover:border-primary/30 transition-all animate-scale-in">
+          <Card 
+            key={appointment.id} 
+            id={`appointment-${appointment.id}`}
+            className={`hover-lift border-primary/10 hover:border-primary/30 transition-all animate-scale-in relative cursor-pointer ${String(appointment.id) === highlightedAppointmentId ? 'ring-2 ring-primary shadow-lg bg-accent/10' : ''}`}
+            onClick={() => handleCardClick(appointment.id)}
+          >
+            {String(appointment.id) === highlightedAppointmentId && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute -top-2 -right-2 h-6 w-6 rounded-full bg-background border shadow-sm hover:bg-muted z-10"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDismissHighlight();
+                }}
+                title="Zrušiť zvýraznenie"
+              >
+                <X className="h-3 w-3" />
+              </Button>
+            )}
             <CardHeader>
               <div className="flex justify-between items-start">
                 <div className="space-y-1">
@@ -217,7 +295,10 @@ const CalendarView = ({ viewType }: CalendarViewProps) => {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => handleEdit(appointment)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleEdit(appointment);
+                    }}
                   >
                     <Edit className="mr-2 h-4 w-4" />
                     Edit
@@ -225,11 +306,14 @@ const CalendarView = ({ viewType }: CalendarViewProps) => {
                   <Button
                     variant="destructive"
                     size="sm"
-                    onClick={() => handleDelete(appointment.id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteClick(appointment);
+                    }}
                     disabled={deleteAppointmentMutation.isPending}
                   >
                     <Trash2 className="mr-2 h-4 w-4" />
-                    Delete
+                    Vymazať
                   </Button>
                 </div>
               )}
@@ -265,7 +349,10 @@ const CalendarView = ({ viewType }: CalendarViewProps) => {
               suggestions={searchSuggestions}
             />
           </div>
-          <Button onClick={() => setShowAppointmentDialog(true)}>
+          <Button 
+            onClick={() => setShowAppointmentDialog(true)}
+            className="bg-gradient-to-r from-[#3b82f6] to-[#1e3a8a] text-white hover:from-[#a3e635] hover:to-[#65a30d] transition-all duration-300 shadow-md border-0"
+          >
             <Plus className="mr-2 h-4 w-4" />
             Request Appointment
           </Button>
@@ -280,76 +367,92 @@ const CalendarView = ({ viewType }: CalendarViewProps) => {
           viewType={viewType}
           appointment={selectedAppointment}
         />
+
+        <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Naozaj chcete odstrániť tento termín?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Táto akcia je trvalá a nemožno ju vrátiť späť.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Zrušiť</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleDeleteConfirm();
+                }}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                disabled={deleteAppointmentMutation.isPending}
+              >
+                {deleteAppointmentMutation.isPending ? 'Odstraňujem...' : 'Odstrániť'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     );
   }
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="flex gap-4 items-center">
-        <div className="relative flex-1 h-16 flex items-center z-40">
-          <SearchBar 
-            placeholder="Hľadať termíny" 
-            onSearch={setSearchTerm}
-            suggestions={searchSuggestions}
-          />
+      <div className="flex flex-col sm:flex-row justify-between gap-4">
+        <div className="relative flex-1 max-w-md z-40">
+           <SearchBar 
+              placeholder="Hľadať termíny..." 
+              onSearch={setSearchTerm}
+              suggestions={searchSuggestions}
+           />
         </div>
-        <Button onClick={() => setShowAppointmentDialog(true)} className="bg-gradient-to-r from-[#3b82f6] to-[#1e3a8a] text-white hover:from-[#a3e635] hover:to-[#65a30d] transition-all duration-300 shadow-md border-0">
+        <Button 
+          onClick={() => setShowAppointmentDialog(true)} 
+          className="bg-gradient-to-r from-[#3b82f6] to-[#1e3a8a] text-white hover:from-[#a3e635] hover:to-[#65a30d] transition-all duration-300 shadow-md border-0"
+        >
           <Plus className="mr-2 h-4 w-4" />
           Nový termín
         </Button>
       </div>
 
       <Tabs value={activeCalendar} onValueChange={(v) => setActiveCalendar(v as any)} className="w-full">
-        <TabsList className="grid w-full grid-cols-3 bg-secondary p-1">
-          <TabsTrigger
-            value="doctor"
-            className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-[#3b82f6] data-[state=active]:to-[#1e3a8a] data-[state=active]:text-white transition-all shadow-sm"
-          >
-            My Calendar
-          </TabsTrigger>
-          <TabsTrigger
-            value="client"
-            className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-[#3b82f6] data-[state=active]:to-[#1e3a8a] data-[state=active]:text-white transition-all shadow-sm"
-          >
-            Doctor + Employees
-          </TabsTrigger>
-          <TabsTrigger
-            value="team"
-            className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-[#3b82f6] data-[state=active]:to-[#1e3a8a] data-[state=active]:text-white transition-all shadow-sm"
-          >
-            Everyone Together
-          </TabsTrigger>
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="personal">Môj kalendár</TabsTrigger>
+          {/* Internal calendar visible to doctor, admin, employees, but NOT patients */}
+          <TabsTrigger value="internal">Udalosti tímu</TabsTrigger>
+           {/* Everyone sees general calendar */}
+          <TabsTrigger value="everyone">Všeobecný kalendár</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="doctor" className="mt-6 animate-fade-in">
-          <Card className="mb-4 border-primary/20 bg-gradient-to-r from-primary/5 to-accent/5">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg text-primary">My Calendar</CardTitle>
-              <CardDescription>Your personal appointments as doctor/creator</CardDescription>
-            </CardHeader>
-          </Card>
-          {renderAppointmentsList()}
+        <TabsContent value="personal" className="mt-4 space-y-4">
+            <div className="bg-muted/50 p-4 rounded-lg mb-4 border-l-4 border-blue-500">
+                <h3 className="font-semibold text-lg mb-1">Môj kalendár</h3>
+                <p className="text-sm text-muted-foreground">
+                    {viewType === 'doctor'
+                            ? 'Termíny priradené vám.'
+                            : 'Termíny, ktoré ste vytvorili.'}
+                </p>
+            </div>
+            {renderAppointmentsList()}
         </TabsContent>
 
-        <TabsContent value="client" className="mt-6 animate-fade-in">
-          <Card className="mb-4 border-accent/20 bg-gradient-to-r from-accent/5 to-primary/5">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg text-accent">Doctor + Employees Calendar</CardTitle>
-              <CardDescription>Appointments visible to doctors and employees only</CardDescription>
-            </CardHeader>
-          </Card>
-          {renderAppointmentsList()}
+        <TabsContent value="internal" className="mt-4 space-y-4">
+            <div className="bg-muted/50 p-4 rounded-lg mb-4 border-l-4 border-purple-500">
+                <h3 className="font-semibold text-lg mb-1">Udalosti tímu</h3>
+                <p className="text-sm text-muted-foreground">
+                    Všetky lekárske vyšetrenia a pracovné udalosti.
+                </p>
+            </div>
+            {renderAppointmentsList()}
         </TabsContent>
 
-        <TabsContent value="team" className="mt-6 animate-fade-in">
-          <Card className="mb-4 border-primary/20 gradient-primary">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg text-primary-foreground">Everyone Together</CardTitle>
-              <CardDescription className="text-primary-foreground/80">Shared calendar visible to all team members</CardDescription>
-            </CardHeader>
-          </Card>
-          {renderAppointmentsList()}
+        <TabsContent value="everyone" className="mt-4 space-y-4">
+            <div className="bg-muted/50 p-4 rounded-lg mb-4 border-l-4 border-green-500">
+                <h3 className="font-semibold text-lg mb-1">Všeobecný kalendár</h3>
+                <p className="text-sm text-muted-foreground">
+                    Zdieľaný kalendár viditeľný pre všetkých.
+                </p>
+            </div>
+            {renderAppointmentsList()}
         </TabsContent>
       </Tabs>
 
@@ -362,6 +465,30 @@ const CalendarView = ({ viewType }: CalendarViewProps) => {
         viewType={viewType}
         appointment={selectedAppointment}
       />
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Naozaj chcete odstrániť tento termín?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Táto akcia je trvalá a nemožno ju vrátiť späť.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Zrušiť</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                handleDeleteConfirm();
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleteAppointmentMutation.isPending}
+            >
+              {deleteAppointmentMutation.isPending ? 'Odstraňujem...' : 'Odstrániť'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

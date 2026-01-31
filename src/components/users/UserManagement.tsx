@@ -11,6 +11,16 @@ import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import UserDialog from './UserDialog';
 import { SearchBar, type SearchSuggestion } from '@/components/ui/search-bar';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 type UserRole = 'admin' | 'doctor' | 'patient' | 'zamestnanec';
 
@@ -24,6 +34,7 @@ const UserManagement = ({ role }: UserManagementProps) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [showDialog, setShowDialog] = useState(false);
   const [selectedUser, setSelectedUser] = useState<any>(null);
+  const [userToDelete, setUserToDelete] = useState<string | null>(null);
 
   const { data: users, isLoading } = useQuery({
     queryKey: ['users', role],
@@ -129,9 +140,14 @@ const UserManagement = ({ role }: UserManagementProps) => {
     setShowDialog(true);
   };
 
-  const handleDelete = async (userId: string) => {
-    if (confirm('Naozaj chcete vymazať tohto používateľa?')) {
-      deleteUserMutation.mutate(userId);
+  const handleDelete = (userId: string) => {
+    setUserToDelete(userId);
+  };
+
+  const confirmDelete = () => {
+    if (userToDelete) {
+      deleteUserMutation.mutate(userToDelete);
+      setUserToDelete(null);
     }
   };
 
@@ -236,6 +252,26 @@ const UserManagement = ({ role }: UserManagementProps) => {
         user={selectedUser}
         defaultRole={role}
       />
+
+      <AlertDialog open={!!userToDelete} onOpenChange={(open) => !open && setUserToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Naozaj chcete vymazať tohto používateľa?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Táto akcia je nevratná. Používateľ bude natrvalo odstránený zo systému.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Zrušiť</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={confirmDelete}
+            >
+              Vymazať
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

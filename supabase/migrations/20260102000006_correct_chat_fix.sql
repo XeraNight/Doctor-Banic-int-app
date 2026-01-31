@@ -24,6 +24,16 @@ DROP POLICY IF EXISTS "Users can send messages in their rooms" ON public.chat_me
 DROP POLICY IF EXISTS "allow_insert_messages" ON public.chat_messages;
 DROP POLICY IF EXISTS "allow_select_messages" ON public.chat_messages;
 
+-- Drop correct_chat_fix policies if they exist (to allow re-run)
+DROP POLICY IF EXISTS "base_see_own_membership" ON public.chat_room_members;
+DROP POLICY IF EXISTS "base_insert_own_membership" ON public.chat_room_members;
+DROP POLICY IF EXISTS "rooms_insert" ON public.chat_rooms;
+DROP POLICY IF EXISTS "rooms_select" ON public.chat_rooms;
+DROP POLICY IF EXISTS "members_insert_by_creator" ON public.chat_room_members;
+DROP POLICY IF EXISTS "members_select_in_accessible_rooms" ON public.chat_room_members;
+DROP POLICY IF EXISTS "messages_insert" ON public.chat_messages;
+DROP POLICY IF EXISTS "messages_select" ON public.chat_messages;
+
 -- ========================================
 -- STEP 2: CREATE BASE CASE POLICIES
 -- ========================================

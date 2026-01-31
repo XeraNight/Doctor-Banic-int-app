@@ -74,8 +74,7 @@ export const useNotifications = () => {
                 .select(`
           id, 
           appointment_date, 
-          patient:patients(full_name), 
-          doctor:profiles!appointments_doctor_id_fkey(full_name)
+          patient:patients(full_name)
         `)
                 .gte('appointment_date', now.toISOString())
                 .lte('appointment_date', next72h.toISOString())
@@ -109,7 +108,7 @@ export const useNotifications = () => {
                 type: 'appointment',
                 title: 'Upcoming Appointment',
                 message: `${format(new Date(app.appointment_date), 'MMM d, HH:mm')} - ${app.patient?.full_name} (${app.doctor?.full_name || 'Unassigned'})`,
-                link: '/calendar', // Or deep link
+                link: `/dashboard?tab=calendar&appointmentId=${app.id}`,
                 is_read: false, // Always "new" if upcoming
                 created_at: app.appointment_date, // Sort by event time? Or creation? For "Upcoming", event time is key.
                 priority: 'high'

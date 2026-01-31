@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Calendar, Users, FileText, Bell, LogOut, Menu, UserCog, Stethoscope, Briefcase, Settings, FolderOpen, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import CalendarWithNotes from '@/components/calendar/CalendarWithNotes';
 import PatientList from '@/components/patients/PatientList';
 import NotesPanel from '@/components/notes/NotesPanel';
@@ -17,7 +17,15 @@ import logo from '@/assets/logo.png';
 const AdminDashboard = () => {
   const { signOut, user } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState<'calendar' | 'patients' | 'users' | 'doctors' | 'employees' | 'documents' | 'notes' | 'chat'>('calendar');
+
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab && (tab === 'calendar' || tab === 'patients' || tab === 'users' || tab === 'doctors' || tab === 'employees' || tab === 'documents' || tab === 'notes' || tab === 'chat')) {
+      setActiveTab(tab as any);
+    }
+  }, [searchParams]);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const menuItems = [
@@ -34,12 +42,12 @@ const AdminDashboard = () => {
   return (
     <div className="flex h-screen bg-transparent">
       {/* Sidebar - Desktop */}
-      <aside className="hidden md:flex w-64 flex-col border-r border-white/10 bg-sidebar backdrop-blur-xl transition-all duration-300">
+      <aside className="hidden md:flex w-64 flex-col border-r border-white/10 bg-sidebar backdrop-blur-xl transition-all duration-300 relative z-40">
         <div className="p-6 border-b border-white/10">
           <img src={logo} alt="Doktor Baník" className="h-12 w-auto mb-2" />
           <p className="text-sm text-sidebar-foreground/60 mt-1">Administrátorský panel</p>
         </div>
-        <nav className="flex-1 p-4 space-y-2">
+        <nav className="flex-1 p-4 space-y-2 overflow-y-auto min-h-0">
           {menuItems.map((item) => (
             <Button
               key={item.id}

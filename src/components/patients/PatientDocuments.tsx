@@ -1,4 +1,5 @@
-import { useQuery } from '@tanstack/react-query';
+import { useState, useRef } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,15 +12,18 @@ import { useToast } from '@/hooks/use-toast';
 const PatientDocuments = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
-  const { data: currentPatient } = useQuery({
+  const { data: currentPatient, isLoading: isProfileLoading } = useQuery({
     queryKey: ['current-patient', user?.id],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('patients')
         .select('*')
         .eq('user_id', user?.id)
-        .single();
+        .maybeSingle();
       if (error) throw error;
       return data;
     },
@@ -40,11 +44,93 @@ const PatientDocuments = () => {
     enabled: !!currentPatient,
   });
 
-  const handleUpload = () => {
-    toast({
-      title: 'Coming Soon',
-      description: 'Document upload functionality will be available soon',
-    });
+  // Lazy profile creation during upload - no blocking UI
+  const uploadMutation = useMutation({
+    mutationFn: async (file: File) => {
+      let targetPatientId = currentPatient?.id;
+
+      // 1. Ensure Patient Profile Exists
+      if (!targetPatientId) {
+        // Check DB directly
+        const { data: existing } = await supabase
+          .from('patients')
+          .select('id')
+          .eq('user_id', user?.id)
+          .maybeSingle();
+        
+        if (existing) {
+          targetPatientId = existing.id;
+        } else {
+          // Create new profile via RPC (bypasses RLS)
+          const { data: newPatient, error: createError } = await supabase
+            .rpc('create_my_patient_profile' as any, {
+              full_name: user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Unknown',
+              email: user?.email || '',
+            });
+          
+          if (createError) throw createError;
+          // RPC returns the object directly, but typed as json. We cast or assume it has id.
+          // Note: The function returns "row_to_json", so data is the object.
+          targetPatientId = (newPatient as any).id;
+          
+          // Refresh the query to show the new profile in UI eventually
+          queryClient.invalidateQueries({ queryKey: ['current-patient'] });
+        }
+      }
+
+      if (!targetPatientId) throw new Error('Could not initialize patient profile.');
+
+      // 2. Upload to Storage
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${targetPatientId}/${Math.random()}.${fileExt}`;
+      const { error: uploadError } = await supabase.storage
+        .from('documents')
+        .upload(fileName, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('documents')
+        .getPublicUrl(fileName);
+
+      // 3. Create DB Record
+      const { error: dbError } = await supabase
+        .from('documents')
+        .insert({
+          patient_id: targetPatientId,
+          file_name: file.name,
+          file_url: publicUrl,
+          file_type: fileExt,
+          file_size: file.size,
+          description: 'Uploaded by patient',
+          uploaded_by: user?.id
+        });
+
+      if (dbError) throw dbError;
+    },
+    onSuccess: () => {
+      toast({ title: 'Success', description: 'Document uploaded successfully' });
+      queryClient.invalidateQueries({ queryKey: ['patient-documents'] });
+    },
+    onError: (error: any) => {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    },
+    onSettled: () => {
+      setIsUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  });
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setIsUploading(true);
+      uploadMutation.mutate(file);
+    }
+  };
+
+  const handleUploadClick = () => {
+    fileInputRef.current?.click();
   };
 
   return (
@@ -57,10 +143,22 @@ const PatientDocuments = () => {
             Upload and manage your medical documents
           </p>
         </div>
-        <Button onClick={handleUpload}>
-          <Upload className="mr-2 h-4 w-4" />
-          Upload Document
-        </Button>
+        <div className="flex gap-2">
+          <input
+            type="file"
+            ref={fileInputRef}
+            className="hidden"
+            onChange={handleFileSelect}
+          />
+          <Button 
+            onClick={handleUploadClick} 
+            disabled={isUploading}
+            className="bg-gradient-to-r from-[#3b82f6] to-[#1e3a8a] text-white hover:from-[#a3e635] hover:to-[#65a30d] transition-all duration-300 shadow-md border-0"
+          >
+            <Upload className="mr-2 h-4 w-4" />
+            {isUploading ? 'Nahrávam...' : 'Nahrať dokument'}
+          </Button>
+        </div>
       </div>
 
       {/* Documents List */}
@@ -109,7 +207,7 @@ const PatientDocuments = () => {
                 <p className="text-sm text-muted-foreground mt-1">
                   Upload lab results, reports, or other medical documents
                 </p>
-                <Button variant="link" className="mt-3" onClick={handleUpload}>
+                <Button variant="link" className="mt-3" onClick={handleUploadClick}>
                   Upload your first document
                 </Button>
               </div>

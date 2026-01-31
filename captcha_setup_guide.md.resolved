@@ -1,0 +1,39 @@
+# Ako nastaviť CAPTCHU (Cloudflare Turnstile) na Supabase
+
+Úspešne som do aplikácie integroval **Cloudflare Turnstile Widget**. Teraz ho musíte prepojiť s vaším Supabase projektom, aby fungoval.
+
+## Krok 1: Získanie kľúčov z Cloudflare
+1.  Choďte na [Cloudflare Dashboard](https://dash.cloudflare.com/) a prihláste sa (alebo sa zaregistrujte, je to zadarmo).
+2.  V menu naľavo vyberte **Turnstile**.
+3.  Kliknite na **Add Site**.
+4.  Vyplňte formulár:
+    *   **Site Name:** Napr. "Doktor Baník App".
+    *   **Domain:** Pridajte `localhost` (pre testovanie) a vašu produkčnú doménu (ak už máte).
+    *   **Widget Mode:** Vyberte "Managed" (odporúčané).
+5.  Po vytvorení uvidíte dva kľúče:
+    *   **Site Key** (Verejný kľúč)
+    *   **Secret Key** (Tajný kľúč)
+
+## Krok 2: Nastavenie Site Key v Aplikácii (Frontend)
+1.  Skopírujte **Site Key** z Cloudflare.
+2.  V koreňovom priečinku projektu vytvorte súbor [.env](file:///Users/jakub/Downloads/Doctor%20Banic%20int%20app/.env) (ak neexistuje) a pridajte riadok:
+    ```env
+    VITE_TURNSTILE_SITE_KEY=vas_site_key_sem
+    ```
+    *(Nahraďte `vas_site_key_sem` skutočným kľúčom. Nepoužívajte úvodzovky.)*
+    
+    > **Poznámka:** Po zmene [.env](file:///Users/jakub/Downloads/Doctor%20Banic%20int%20app/.env) súboru musíte reštartovať bežiaci terminál (`Ctrl+C` a znova `npm run dev`).
+
+## Krok 3: Nastavenie Secret Key v Supabase (Backend)
+1.  Otvorte [Supabase Dashboard](https://supabase.com/dashboard).
+2.  Prejdite do **Project Settings** -> **Authentication**.
+3.  V sekcii **Bot Protection** (alebo Security):
+    *   **Enable CAPTCHA protection:** Zapnite (pre Sign Up a Sign In).
+    *   **CAPTCHA Provider:** Vyberte "Turnstile".
+    *   **Turnstile Secret Key:** Vložte **Secret Key** z Cloudflare.
+4.  Uložte zmeny (`Save`).
+
+## Hotovo! 🎉
+Teraz bude prihlasovanie a registrácia chránená modernou CAPTCHOU.
+- Ak sa pokúsite prihlásiť bez CAPTCHY (napr. cez Postman), Supabase to zamietne.
+- V aplikácii uvidíte widget, ktorý overí, že ste človek, a až potom dovolí odoslať formulár.
